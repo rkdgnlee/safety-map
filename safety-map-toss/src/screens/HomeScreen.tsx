@@ -59,7 +59,7 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
           setActiveCoordinate({ lat: latitude, lng: longitude });
           setIsAddressConfirmed(true);
         },
-        (error) => {
+        () => {
           alert('현재 위치 권한을 확인해주세요.');
           setSearchQuery('광주광역시 (기본값)');
           setSearchType('CURRENT');

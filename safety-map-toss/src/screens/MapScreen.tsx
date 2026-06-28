@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useNaverMap } from '../hooks/useNaverMap';
 
 interface MapScreenProps {
   location: { lat: number; lng: number } | null;
@@ -14,11 +15,17 @@ const CRIME_TYPES = [
   { id: 'murder', label: '살인' },
   { id: 'sex', label: '성범죄' },
 ];
+const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 }; // location이 없을 때 폴백 (서울시청)
 
 export default function MapScreen({ location, onBack }: MapScreenProps) {
   const [selectedType, setSelectedType] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const { isLoaded, error } = useNaverMap(mapContainerRef, {
+    center: location ?? DEFAULT_CENTER,
+    zoom: 15,
+  });
   return (
     <div style={{
       position: 'relative',
@@ -35,15 +42,24 @@ export default function MapScreen({ location, onBack }: MapScreenProps) {
       `}</style>
       
       {/* 1. 지도 영역 */}
-      <div style={{
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#e5e8eb',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <p style={{ color: '#8b95a1' }}>[V-World 지도 + {selectedType} 히트맵 레이어]</p>
+      <div
+        ref={mapContainerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#e5e8eb',
+        }}
+      >
+        {!isLoaded && !error && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <p style={{ color: '#8b95a1' }}>지도를 불러오는 중...</p>
+          </div>
+        )}
+        {error && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <p style={{ color: '#f04452' }}>{error}</p>
+          </div>
+        )}
       </div>
 
       {/* 2. 우측 상단 통합 제어 섹션 (범례 + 그 아래 칩스) */}
