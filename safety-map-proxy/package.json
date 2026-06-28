@@ -2,6 +2,7 @@
   "name": "safety-map-proxy",
   "version": "1.0.0",
   "devDependencies": {
-    "@types/node": "^25.9.3"
+    "@types/node": "^25.9.3",
+    "@vercel/node": "^5.8.22"
   }
 }
