@@ -1,32 +1,42 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import HomeScreen from './screens/HomeScreen';
 import MapScreen from './screens/MapScreen';
-import AdScreen from './screens/AdScreen';
+import { AdScreen } from './screens/AdScreen';
 
 export type ScreenType = 'HOME' | 'LOADING_AD' | 'AD' | 'MAP';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('HOME');
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [adContext, setAdContext] = useState<'home' | 'map'>('home'); // ← 추가
+  const [pendingCrimeType, setPendingCrimeType] = useState<string | null>(null); // ← 추가
 
-  // 1. 홈 화면에서 하단 최종 버튼을 눌렀을 때 호출
+  // 1. 홈 → 광고
   const handleStartProcess = (locationData: { lat: number; lng: number }) => {
     setSelectedLocation(locationData);
-    setCurrentScreen('LOADING_AD'); // 1단계: 광고 로딩 상태로 변경
+    setAdContext('home'); // ← 홈에서 오는 것
+    setCurrentScreen('LOADING_AD');
 
-    // 1.5초 동안 로딩 애니메이션을 보여준 뒤 실제 전면 광고 화면으로 전환
     setTimeout(() => {
-      setCurrentScreen('AD'); // 2단계: 전면 광고 진입
+      setCurrentScreen('AD');
     }, 1500);
   };
 
-  // 2. 전면 광고 닫힘 감지
+  // 2. MapScreen에서 범죄유형 변경 시 광고 트리거
+  const handleCrimeTypeAdTrigger = (crimeType: string) => {
+    setPendingCrimeType(crimeType);
+    setAdContext('map'); // ← 지도에서 오는 것
+    setCurrentScreen('AD');
+  };
+
+  // 3. 광고 닫힘
   const handleAdClose = () => {
-    setCurrentScreen('MAP'); // 3단계: 최종 지도 결과 화면
+    setCurrentScreen('MAP');
   };
 
   const handleGoBackHome = () => {
     setSelectedLocation(null);
+    setPendingCrimeType(null);
     setCurrentScreen('HOME');
   };
 
@@ -35,8 +45,7 @@ export default function App() {
       {currentScreen === 'HOME' && (
         <HomeScreen onSearchComplete={handleStartProcess} />
       )}
-      
-      {/* ⏳ 광고 로딩 화면 인터페이스 */}
+
       {currentScreen === 'LOADING_AD' && (
         <div style={{
           display: 'flex',
@@ -47,8 +56,7 @@ export default function App() {
           backgroundColor: '#ffffff',
           fontFamily: '"Pretendard", sans-serif'
         }}>
-          {/* 토스 스타일의 깔끔한 인디케이터나 이모지 */}
-          <div style={{ fontSize: '40px', marginBottom: '16px', animation: 'infinite' }}>🛡️</div>
+          <div style={{ fontSize: '40px', marginBottom: '16px' }}>🛡️</div>
           <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#191f28', margin: '0 0 8px 0' }}>
             안전 분석 결과를 가져오고 있어요
           </h3>
@@ -57,13 +65,21 @@ export default function App() {
           </p>
         </div>
       )}
-      
+
       {currentScreen === 'AD' && (
-        <AdScreen onClose={handleAdClose} />
+        <AdScreen
+          onClose={handleAdClose}
+          context={adContext} // ← 수정
+        />
       )}
-      
+
       {currentScreen === 'MAP' && (
-        <MapScreen location={selectedLocation} onBack={handleGoBackHome} />
+        <MapScreen
+          location={selectedLocation}
+          pendingCrimeType={pendingCrimeType} // ← 추가
+          onCrimeTypeAdTrigger={handleCrimeTypeAdTrigger} // ← 추가
+          onBack={handleGoBackHome}
+        />
       )}
     </div>
   );

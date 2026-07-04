@@ -12,7 +12,7 @@ interface LocationItem {
 
 const RECOMMENDED_LOCATIONS: LocationItem[] = [
   { id: 'gangnam', label: '서울 강남구', lat: 37.4979, lng: 127.0276 },
-  { id: 'seongsu', label: '서울 성수', lat: 37.5446, lng: 127.0565 },
+  // { id: 'seongsu', label: '서울 성수', lat: 37.5446, lng: 127.0565 },
   { id: 'pangyo', label: '판교', lat: 37.4020, lng: 127.1086 },
   { id: 'wirye', label: '위례', lat: 37.4722, lng: 127.1431 },
   { id: 'bupyeong', label: '인천 부평', lat: 37.4894, lng: 126.7224 },
@@ -40,16 +40,21 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
     searchType === 'CUSTOM' && !isAddressConfirmed ? searchQuery : ''
   );
 
+  const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
+
   // 1. 추천 지역 칩 클릭 -> 해당 칩 이름과 좌표 매핑
   const handleSelectChip = (loc: LocationItem) => {
     setSearchQuery(loc.label);
     setSearchType('CHIP');
     setActiveCoordinate({ lat: loc.lat, lng: loc.lng });
     setIsAddressConfirmed(true);
+    setSelectedChipId(loc.id); // ← 추가
   };
+
 
   // 2. 현재 위치 클릭 -> 현재 위치 이름과 좌표 매핑
   const handleCurrentLocation = () => {
+    setSelectedChipId('current'); // ← 추가 (맨 위에)
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -80,6 +85,7 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
     setSearchType('CUSTOM');
     setActiveCoordinate(null); // 직접 입력 시 기존 칩 좌표 초기화
     setIsAddressConfirmed(false); // 다시 타이핑하면 검색 드롭다운 다시 열림
+    setSelectedChipId(null);
   };
 
   // 💡 검색 결과 리스트에서 주소 하나를 선택했을 때
@@ -136,8 +142,8 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
 
       {/* 타이틀 */}
       <div style={{ marginTop: '24px', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: 'bold', color: '#191f28', margin: 0, letterSpacing: '-0.5px' }}>
-          Find your area
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#191f28', margin: 0, letterSpacing: '-0.5px' }}>
+           ⚠️ 내 동네의 범죄 주의 구간을 확인해봐요
         </h1>
       </div>
 
@@ -242,17 +248,18 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
             alignItems: 'center',
             gap: '6px',
             padding: '10px 16px',
-            backgroundColor: '#0064ff',
-            color: '#ffffff',
+            backgroundColor: selectedChipId === 'current' ? '#0064ff' : '#eef1f4', 
+            color : selectedChipId === 'current' ? '#ffffff' : '#4e5968',
             border: 'none',
             borderRadius: '20px',
             fontSize: '14px',
             fontWeight: '600',
             cursor: 'pointer',
-            flexShrink: 0
+            flexShrink: 0,
+            margin: '4px 0px'
           }}
         >
-          🌐 현재위치
+          🌐 현재 위치
         </button>
 
         {RECOMMENDED_LOCATIONS.map((loc) => (
@@ -261,14 +268,15 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
             onClick={() => handleSelectChip(loc)}
             style={{
               padding: '10px 16px',
-              backgroundColor: '#eef1f4',
-              color: '#4e5968',
+              backgroundColor: selectedChipId === loc.id ? '#0064ff' : '#eef1f4',
               border: 'none',
               borderRadius: '20px',
               fontSize: '14px',
+              color : selectedChipId === loc.id ? '#ffffff' : '#4e5968',
               fontWeight: '500',
               cursor: 'pointer',
-              flexShrink: 0
+              flexShrink: 0,
+              margin: '4px 0px'
             }}
           >
             {loc.label}
@@ -312,14 +320,15 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
             backgroundColor: '#0064ff',
             color: '#ffffff',
             border: 'none',
-            borderRadius: '18px',
+            borderRadius: '48px',
             fontSize: '16px',
             fontWeight: 'bold',
             boxShadow: '0 4px 12px rgba(0, 100, 255, 0.2)',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            
           }}
         >
-          🛡️ Check My Neighborhood Safety
+          검색해보기
         </button>
       </div>
 

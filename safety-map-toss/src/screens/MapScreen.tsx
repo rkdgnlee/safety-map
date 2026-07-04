@@ -1,11 +1,15 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNaverMap } from '../hooks/useNaverMap';
+import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
+
+const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 }; // location이 없을 때 폴백 (서울시청)
 
 interface MapScreenProps {
   location: { lat: number; lng: number } | null;
+  pendingCrimeType: string | null;        // ← 추가
+  onCrimeTypeAdTrigger: (crimeType: string) => void; // ← 추가
   onBack: () => void;
 }
-
 const CRIME_TYPES = [
   { id: 'all', label: '5대 범죄 전체' },
   { id: 'child', label: '어린이 대상 범죄' },
@@ -15,17 +19,39 @@ const CRIME_TYPES = [
   { id: 'murder', label: '살인' },
   { id: 'sex', label: '성범죄' },
 ];
-const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 }; // location이 없을 때 폴백 (서울시청)
+const AD_TRIGGER_COUNT = 2;
 
-export default function MapScreen({ location, onBack }: MapScreenProps) {
-  const [selectedType, setSelectedType] = useState('all');
+export default function MapScreen({ location, pendingCrimeType, onCrimeTypeAdTrigger, onBack }: MapScreenProps) {
+  
+  // 💡 광고 보고 돌아왔을 때 pendingCrimeType으로 자동 복원
+  const [selectedType, setSelectedType] = useState(pendingCrimeType ?? 'all');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const crimeViewCountRef = useRef(0);
+
+  const handleSelectType = useCallback((typeId: string) => {
+    if (typeId === 'all') {
+      setSelectedType('all');
+      return;
+    }
+
+    crimeViewCountRef.current += 1;
+
+    if (crimeViewCountRef.current > AD_TRIGGER_COUNT) {
+      crimeViewCountRef.current = 0;
+      onCrimeTypeAdTrigger(typeId); // ← App으로 올려서 AdScreen 띄움
+    } else {
+      setSelectedType(typeId);
+    }
+  }, [onCrimeTypeAdTrigger]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const { isLoaded, error } = useNaverMap(mapContainerRef, {
+  const { map, isLoaded, error } = useNaverMap(mapContainerRef, {
     center: location ?? DEFAULT_CENTER,
     zoom: 15,
   });
+  
+  // selectedType을 그대로 넘기면 끝
+  useSafemapOverlay({ map, isMapLoaded: isLoaded, crimeType: selectedType });
   return (
     <div style={{
       position: 'relative',
@@ -116,7 +142,7 @@ export default function MapScreen({ location, onBack }: MapScreenProps) {
           {CRIME_TYPES.map((type) => (
             <button
               key={type.id}
-              onClick={() => setSelectedType(type.id)}
+              onClick={() => handleSelectType(type.id)} // ← setSelectedType 대신 교체
               style={{
                 flexShrink: 0,
                 padding: '10px 16px',
@@ -128,7 +154,8 @@ export default function MapScreen({ location, onBack }: MapScreenProps) {
                 fontWeight: '600',
                 boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
                 backdropFilter: 'blur(5px)',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                margin: '4px 0px'
               }}
             >
               {type.label}
