@@ -56,22 +56,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     styles: String(styles),
   });
 
-  try {
-    const apiRes = await fetch(
-      `http://safemap.go.kr/openapi2/${endpoint}?${params.toString()}`
-    );
+  // safemap-wms.ts — try 블록 수정
+try {
+  const requestUrl = `http://safemap.go.kr/openapi2/${endpoint}?${params.toString()}`;
+  console.log('[safemap-wms] 요청 URL:', requestUrl); // ← 추가
 
-    if (!apiRes.ok) {
-      return res.status(apiRes.status).json({ error: 'safemap API 호출 실패' });
-    }
+  const apiRes = await fetch(requestUrl);
 
-    const imageBuffer = await apiRes.arrayBuffer();
+  console.log('[safemap-wms] 응답 status:', apiRes.status); // ← 추가
+  console.log('[safemap-wms] Content-Type:', apiRes.headers.get('content-type')); // ← 추가
 
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return res.status(200).send(Buffer.from(imageBuffer));
-  } catch (err) {
-    console.error('safemap-wms proxy error:', err);
-    return res.status(500).json({ error: '범죄 데이터 호출 실패' });
+  if (!apiRes.ok) {
+    const text = await apiRes.text();
+    console.error('[safemap-wms] 응답 바디:', text); // ← 추가
+    return res.status(apiRes.status).json({ error: 'safemap API 호출 실패', detail: text });
   }
+
+  const imageBuffer = await apiRes.arrayBuffer();
+  console.log('[safemap-wms] 이미지 크기(bytes):', imageBuffer.byteLength); // ← 추가
+
+  // 이미지가 0바이트면 빈 응답 온 것
+  if (imageBuffer.byteLength === 0) {
+    return res.status(502).json({ error: '빈 이미지 응답' });
+  }
+
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+  return res.status(200).send(Buffer.from(imageBuffer));
+} catch (err) {
+  console.error('[safemap-wms] proxy error:', err);
+  return res.status(500).json({ error: '범죄 데이터 호출 실패' });
+}
 }
