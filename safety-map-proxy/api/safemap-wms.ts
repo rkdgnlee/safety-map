@@ -45,7 +45,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const params = new URLSearchParams({
-    serviceKey,
     srs: 'EPSG:4326',
     bbox,
     format: 'image/png',
@@ -56,10 +55,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     styles: String(styles),
   });
 
-  // safemap-wms.ts — try 블록 수정
+    const requestUrl = `https://safemap.go.kr/openapi2/${endpoint}?serviceKey=${serviceKey}&${params.toString()}`;
+    console.log('[safemap-wms] 요청 URL:', requestUrl);
 try {
-  const requestUrl = `http://safemap.go.kr/openapi2/${endpoint}?${params.toString()}`;
-  console.log('[safemap-wms] 요청 URL:', requestUrl); // ← 추가
 
   const apiRes = await fetch(requestUrl);
 

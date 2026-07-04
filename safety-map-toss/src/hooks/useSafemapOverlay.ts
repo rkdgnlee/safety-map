@@ -34,6 +34,9 @@ export function useSafemapOverlay({ map, isMapLoaded, crimeType }: UseSafemapOve
       });
 
       const imageUrl = `${PROXY_BASE_URL}/api/safemap-wms?${params.toString()}`;
+        console.log('[safemap] PROXY_BASE_URL:', PROXY_BASE_URL); // ← 추가
+        console.log('[safemap] 요청 URL:', imageUrl);             // ← 추가
+        console.log('[safemap] crimeType:', crimeType);           // ← 추가
 
       if (overlayRef.current) {
         overlayRef.current.setMap(null);
