@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import BannerScreen from './BannerScreen';
 import { useAddressSearch } from '../hooks/useAddressSearch';
 import { JusoItem } from '../services/addressService';
+import BannerAdComponent from './BannerAdComponent';
 
 interface LocationItem {
   id: string;
@@ -12,7 +12,7 @@ interface LocationItem {
 
 const RECOMMENDED_LOCATIONS: LocationItem[] = [
   { id: 'gangnam', label: '서울 강남구', lat: 37.4979, lng: 127.0276 },
-  // { id: 'seongsu', label: '서울 성수', lat: 37.5446, lng: 127.0565 },
+  { id: 'seongsu', label: '서울 성수', lat: 37.5446, lng: 127.0565 },
   { id: 'pangyo', label: '판교', lat: 37.4020, lng: 127.1086 },
   { id: 'wirye', label: '위례', lat: 37.4722, lng: 127.1431 },
   { id: 'bupyeong', label: '인천 부평', lat: 37.4894, lng: 126.7224 },
@@ -20,7 +20,7 @@ const RECOMMENDED_LOCATIONS: LocationItem[] = [
 ];
 
 interface HomeScreenProps {
-  onSearchComplete: (location: { lat: number; lng: number }) => void;
+  onSearchComplete: (location: { lat: number; lng: number }, address: string) => void;
 }
 
 export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
@@ -107,17 +107,17 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
     if (searchType === 'CUSTOM') {
       if (activeCoordinate) {
         // Geocoding 연동 후에는 이 분기가 항상 타게 됨
-        onSearchComplete(activeCoordinate);
+        onSearchComplete(activeCoordinate, searchQuery);
       } else {
         console.log('✏️ 좌표 변환 전 임시 처리 - 선택된 주소:', searchQuery);
         // [TODO] 네이버 Geocoding 연동 시 이 mock 좌표를 실제 변환 결과로 교체
         const customMockCoordinate = { lat: 37.5665, lng: 126.9780 };
-        onSearchComplete(customMockCoordinate);
+        onSearchComplete(customMockCoordinate, searchQuery);
       }
     } else {
       // 칩이나 현재 위치 상태일 때는 저장된 고유 좌표 그대로 전송
       const finalCoord = activeCoordinate || { lat: 35.1468, lng: 126.8481 };
-      onSearchComplete(finalCoord);
+      onSearchComplete(finalCoord, searchQuery);
     }
   };
 
@@ -303,7 +303,7 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
 
       {/* 배너 영역 */}
       <div style={{ flex: 1, minHeight: '150px', marginBottom: '24px' }}>
-        <BannerScreen />
+        <BannerAdComponent adGroupId={'ait.v2.live.8d1c445b1d6e44a3'} />
       </div>
 
       {/* 하단 액션 버튼 */}

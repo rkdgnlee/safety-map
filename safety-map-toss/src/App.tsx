@@ -1,20 +1,22 @@
 import { useState } from 'react';
 import HomeScreen from './screens/HomeScreen';
 import MapScreen from './screens/MapScreen';
-import { AdScreen } from './screens/AdScreen';
+import AdComponent from './screens/AdComponent';
 
 export type ScreenType = 'HOME' | 'LOADING_AD' | 'AD' | 'MAP';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('HOME');
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [adContext, setAdContext] = useState<'home' | 'map'>('home'); // ← 추가
   const [pendingCrimeType, setPendingCrimeType] = useState<string | null>(null); // ← 추가
 
   // 1. 홈 → 광고
-  const handleStartProcess = (locationData: { lat: number; lng: number }) => {
+  const handleStartProcess = (locationData: { lat: number; lng: number }, addressText: string) => {
     setSelectedLocation(locationData);
-    setAdContext('home'); // ← 홈에서 오는 것
+    setSelectedAddress(addressText); // 💡 받아온 한글 주소를 상태에 저장!
+    setAdContext('home');
     setCurrentScreen('LOADING_AD');
 
     setTimeout(() => {
@@ -25,7 +27,7 @@ export default function App() {
   // 2. MapScreen에서 범죄유형 변경 시 광고 트리거
   const handleCrimeTypeAdTrigger = (crimeType: string) => {
     setPendingCrimeType(crimeType);
-    setAdContext('map'); // ← 지도에서 오는 것
+    setAdContext('map');
     setCurrentScreen('AD');
   };
 
@@ -36,6 +38,7 @@ export default function App() {
 
   const handleGoBackHome = () => {
     setSelectedLocation(null);
+    setSelectedAddress(''); // 💡 홈으로 갈 때 주소 초기화
     setPendingCrimeType(null);
     setCurrentScreen('HOME');
   };
@@ -67,7 +70,7 @@ export default function App() {
       )}
 
       {currentScreen === 'AD' && (
-        <AdScreen
+        <AdComponent
           onClose={handleAdClose}
           context={adContext} // ← 수정
         />
@@ -76,6 +79,7 @@ export default function App() {
       {currentScreen === 'MAP' && (
         <MapScreen
           location={selectedLocation}
+          address={selectedAddress}
           pendingCrimeType={pendingCrimeType} // ← 추가
           onCrimeTypeAdTrigger={handleCrimeTypeAdTrigger} // ← 추가
           onBack={handleGoBackHome}
@@ -84,3 +88,7 @@ export default function App() {
     </div>
   );
 }
+
+// 인천부평 37.4894 경도 126.7224
+// 위례: 37.4722 경도 127.1431 
+// 뉴스 결과 링크 붙이기 -> 범죄 로딩 체크하기 

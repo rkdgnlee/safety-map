@@ -1,15 +1,18 @@
+// safety-map-toss/src/screens/MapScreen.tsx
 import { useCallback, useRef, useState } from 'react';
 import { useNaverMap } from '../hooks/useNaverMap';
 import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
 
-const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 }; // location이 없을 때 폴백 (서울시청)
+const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
 
 interface MapScreenProps {
   location: { lat: number; lng: number } | null;
-  pendingCrimeType: string | null;        // ← 추가
-  onCrimeTypeAdTrigger: (crimeType: string) => void; // ← 추가
+  address: string | null;                 
+  pendingCrimeType: string | null;        
+  onCrimeTypeAdTrigger: (crimeType: string) => void;
   onBack: () => void;
 }
+
 const CRIME_TYPES = [
   { id: 'all', label: '5대 범죄 전체' },
   { id: 'child', label: '어린이 대상 범죄' },
@@ -21,11 +24,16 @@ const CRIME_TYPES = [
 ];
 const AD_TRIGGER_COUNT = 2;
 
-export default function MapScreen({ location, pendingCrimeType, onCrimeTypeAdTrigger, onBack }: MapScreenProps) {
+export default function MapScreen({ location, address, pendingCrimeType, onCrimeTypeAdTrigger, onBack }: MapScreenProps) {
+  const handleGoToNews = () => {
+    const baseAddress = address || "우리 동네";
+    const searchKeyword = `${baseAddress} 범죄 사건사고`;
+    const naverNewsUrl = `https://search.naver.com/search.naver?where=news&query=${encodeURIComponent(searchKeyword)}`;
+    window.open(naverNewsUrl, '_blank');
+  };
   
-  // 💡 광고 보고 돌아왔을 때 pendingCrimeType으로 자동 복원
   const [selectedType, setSelectedType] = useState(pendingCrimeType ?? 'all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
 
   const crimeViewCountRef = useRef(0);
 
@@ -39,19 +47,25 @@ export default function MapScreen({ location, pendingCrimeType, onCrimeTypeAdTri
 
     if (crimeViewCountRef.current > AD_TRIGGER_COUNT) {
       crimeViewCountRef.current = 0;
-      onCrimeTypeAdTrigger(typeId); // ← App으로 올려서 AdScreen 띄움
+      onCrimeTypeAdTrigger(typeId); 
     } else {
       setSelectedType(typeId);
     }
   }, [onCrimeTypeAdTrigger]);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const { map, isLoaded, error } = useNaverMap(mapContainerRef, {
     center: location ?? DEFAULT_CENTER,
     zoom: 15,
   });
   
-  // selectedType을 그대로 넘기면 끝
-  useSafemapOverlay({ map, isMapLoaded: isLoaded, crimeType: selectedType });
+  // 💡 훅에서 데이터 로딩 상태(isLoading)를 받아옵니다.
+  const { isLoading: isOverlayLoading } = useSafemapOverlay({ 
+    map, 
+    isMapLoaded: isLoaded, 
+    crimeType: selectedType 
+  });
+
   return (
     <div style={{
       position: 'relative',
@@ -62,9 +76,30 @@ export default function MapScreen({ location, pendingCrimeType, onCrimeTypeAdTri
       fontFamily: '"Pretendard", sans-serif'
     }}>
       
+      {/* 💡 스타일 태그 내부에 자연스러운 무한 말줄임표 애니메이션과 쉬머 펄스 애니메이션을 정의합니다. */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes dynamicDots {
+          0% { content: ''; }
+          25% { content: '.'; }
+          50% { content: '..'; }
+          75% { content: '...'; }
+          100% { content: ''; }
+        }
+        .loading-dots::after {
+          content: '';
+          animation: dynamicDots 2s infinite;
+        }
+
+        @keyframes pulseDim {
+          0%, 100% { background-color: rgba(25, 31, 40, 0.08); }
+          50% { background-color: rgba(25, 31, 40, 0.18); }
+        }
+        .shimmer-bg {
+          animation: pulseDim 1.8s infinite ease-in-out;
+        }
       `}</style>
       
       {/* 1. 지도 영역 */}
@@ -88,74 +123,83 @@ export default function MapScreen({ location, pendingCrimeType, onCrimeTypeAdTri
         )}
       </div>
 
-      {/* 2. 우측 상단 통합 제어 섹션 (범례 + 그 아래 칩스) */}
+      {/* 💡 1-2. 오버레이 데이터 로딩 컴포넌트: 지도가 이미 베이스로 떠 있는 상태에서 데이터만 교체될 때 노출 */}
+      {isLoaded && isOverlayLoading && (
+        <div 
+          className="shimmer-bg"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backdropFilter: 'blur(1px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 900, // 칩스(1000)보단 아래, 지도(0)보다는 위에 배치해 조작성을 유지합니다.
+            transition: 'all 0.3s ease'
+          }}
+        >
+          <div style={{
+            padding: '14px 22px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '20px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.07)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '14px' }}>🛡️</span>
+            <span className="loading-dots" style={{ fontSize: '14px', fontWeight: '600', color: '#4e5968', minWidth: '150px' }}>
+              안전 등급 데이터 분석 중
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 2. 우측 상단 통합 제어 섹션 */}
       <div style={{
         position: 'absolute',
-        top: '20px',
-        right: '0px', // 전체 터치 영역 확보를 위해 0으로 변경
-        left: '0px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        zIndex: 10,
+        top: '20px', right: '0px', left: '0px',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+        zIndex: 1000, 
         boxSizing: 'border-box'
       }}>
-        
-        {/* 2-1. 기존대로 횡방향으로 배치된 위험도 범례 (Legend) */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row', 
-          gap: '14px',
-          padding: '10px 16px',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '20px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-          marginRight: '20px', // 오른쪽에 딱 붙도록 마진 부여
-          alignSelf: 'flex-end' // 범례 박스'만' 우측 정렬
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} /> 안전
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500' }} /> 주의
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d' }} /> 위험
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
+          <button
+            onClick={() => setIsHomeModalOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '50%', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', cursor: 'pointer', fontSize: '16px'
+            }}
+          >
+            🏠
+          </button>
+
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '14px', padding: '10px 16px', backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFBC4', boxShadow: '0 1px 3px rgba(0,0,0,0.2), inset 0 0 0 0.5px rgba(0,0,0,0.1)' }} /> 쾌적
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} /> 보통
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} /> 경계
+            </div>
           </div>
         </div>
 
-        {/* 2-2. 범례 아래쪽에 가로(횡방향)로 흐르는 범죄 유형 칩스 */}
-        <div 
-          className="no-scrollbar" 
-          style={{
-            width: '100%', 
-            display: 'flex',
-            gap: '8px',
-            overflowX: 'auto', // 💡 이제 정상적으로 스크롤이 트리거됩니다!
-            whiteSpace: 'nowrap',
-            WebkitOverflowScrolling: 'touch',
-            padding: '0 20px 4px 20px', // 양옆에 20px 여백을 주어 스크롤이 부드럽게 잘리도록 처리
-            boxSizing: 'border-box'
-          }}
-        >
+        <div className="no-scrollbar" style={{ width: '100%', display: 'flex', gap: '8px', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch', padding: '0 20px 4px 20px', boxSizing: 'border-box' }}>
           {CRIME_TYPES.map((type) => (
             <button
               key={type.id}
-              onClick={() => handleSelectType(type.id)} // ← setSelectedType 대신 교체
+              onClick={() => handleSelectType(type.id)} 
               style={{
-                flexShrink: 0,
-                padding: '10px 16px',
-                borderRadius: '20px',
-                border: 'none',
+                flexShrink: 0, padding: '10px 16px', borderRadius: '20px', border: 'none',
                 backgroundColor: selectedType === type.id ? '#191f28' : 'rgba(255,255,255,0.9)',
-                color: selectedType === type.id ? '#fff' : '#4e5968',
-                fontSize: '13px',
-                fontWeight: '600',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
-                backdropFilter: 'blur(5px)',
-                cursor: 'pointer',
-                margin: '4px 0px'
+                color: selectedType === type.id ? '#fff' : '#4e5968', fontSize: '13px', fontWeight: '600',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.05)', backdropFilter: 'blur(5px)', cursor: 'pointer', margin: '4px 0px'
               }}
             >
               {type.label}
@@ -166,134 +210,55 @@ export default function MapScreen({ location, pendingCrimeType, onCrimeTypeAdTri
 
       {/* 3. 하단 오버레이 영역 */}
       <div style={{
-        position: 'absolute',
-        bottom: '40px',
-        left: '0',
-        width: '100%',
-        padding: '0 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '14px',
-        boxSizing: 'border-box',
-        zIndex: 10
+        position: 'absolute', bottom: '40px', left: '0', width: '100%', padding: '0 20px',
+        display: 'flex', flexDirection: 'column', gap: '14px', boxSizing: 'border-box', zIndex: 1000
       }}>
-        
-        {/* 현재 검색 좌표 표시 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          padding: '10px 18px',
-          backgroundColor: '#fff',
-          borderRadius: '25px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          alignSelf: 'center'
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 18px', backgroundColor: '#fff', borderRadius: '25px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', alignSelf: 'center' }}>
           <span style={{ color: '#0064ff' }}>📍</span>
           <span style={{ fontSize: '13px', fontWeight: '600', color: '#4e5968' }}>
-            위도 {location?.lat.toFixed(4)} · 경도 {location?.lng.toFixed(4)}
+            {address || `위도 ${location?.lat.toFixed(4)} · 경도 ${location?.lng.toFixed(4)}`}
           </span>
         </div>
 
-        {/* 메인 액션 버튼 */}
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => handleGoToNews()}
           style={{
-            width: '100%',
-            padding: '18px',
-            backgroundColor: '#0064ff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '18px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            boxShadow: '0 8px 20px rgba(0, 100, 255, 0.25)',
-            cursor: 'pointer'
+            width: '100%', padding: '18px', backgroundColor: '#0064ff', color: '#fff', border: 'none', borderRadius: '18px', fontSize: '16px', fontWeight: 'bold', boxShadow: '0 8px 20px rgba(0, 100, 255, 0.25)', cursor: 'pointer'
           }}
         >
-          🔍 안전 상세 보고서 보기
+          🔍 이 근처 뉴스 결과로 이동
         </button>
       </div>
 
-      {/* 4. 디테일 보고서 다이얼로그 (모달) */}
-      {isModalOpen && (
+      {/* 4. 홈화면 이동 여부를 묻는 모달 */}
+      {isHomeModalOpen && (
         <div style={{
-          position: 'fixed',
-          top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-          padding: '20px'
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px'
         }}>
           <div style={{
-            position: 'relative',
-            width: '100%',
-            maxWidth: '350px',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '30px',
-            padding: '30px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px'
+            position: 'relative', width: '100%', maxWidth: '320px', backgroundColor: '#ffffff', borderRadius: '26px', padding: '28px 24px 24px 24px', boxShadow: '0 20px 40px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxSizing: 'border-box'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold', color: '#191f28' }}>
-                  Safety Report
-                </h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#8b95a1' }}>
-                  상세 지역 안전 분석 정보입니다.
-                </p>
-              </div>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                style={{
-                  width: '32px', height: '32px', borderRadius: '50%',
-                  backgroundColor: '#f2f4f6', border: 'none',
-                  fontSize: '16px', cursor: 'pointer', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', color: '#4e5968'
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: '700', color: '#191f28', lineHeight: '1.4' }}>
+              홈 화면으로 돌아가시겠습니까?
+            </h3>
+            <p style={{ margin: '0 0 24px 0', fontSize: '14px', fontWeight: '600', color: '#f04452', lineHeight: '1.4' }}>
+              (광고를 다시 시청해야합니다)
+            </p>
+
+            <div style={{ display: 'flex', width: '100%', gap: '12px' }}>
+              <button onClick={() => setIsHomeModalOpen(false)} style={{ flex: 1, padding: '14px', backgroundColor: '#f2f4f6', color: '#4e5968', border: 'none', borderRadius: '14px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setIsHomeModalOpen(false);
+                  onBack();
                 }}
+                style={{ flex: 1, padding: '14px', backgroundColor: '#191f28', color: '#fff', border: 'none', borderRadius: '14px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}
               >
-                ✕
+                확인
               </button>
             </div>
-
-            <div style={{
-              flex: 1,
-              minHeight: '200px',
-              backgroundColor: '#f9fafb',
-              borderRadius: '20px',
-              border: '1px dashed #d1d6db',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#8b95a1',
-              fontSize: '14px'
-            }}>
-              [Safety Content Area]
-            </div>
-
-            <button
-              onClick={onBack}
-              style={{
-                width: '100%',
-                padding: '16px',
-                backgroundColor: '#191f28',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '16px',
-                fontSize: '15px',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              홈 화면으로 이동
-            </button>
           </div>
         </div>
       )}
