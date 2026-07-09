@@ -1,7 +1,11 @@
 {
-  "functions": {
-    "api/*.ts": {
-      "runtime": "@vercel/node"
-    }
+  "name": "safety-map-proxy",
+  "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "@vercel/node": "^5.8.22"
   }
 }
