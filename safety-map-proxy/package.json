@@ -2,7 +2,7 @@
   "name": "safety-map-proxy",
   "version": "1.0.0",
   "engines": {
-    "node": "20.x" 
+    "node": "24.x" 
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
