@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAddressSearch } from '../hooks/useAddressSearch';
 import { JusoItem } from '../services/addressService';
 import BannerAdComponent from './BannerAdComponent';
+import { geocodeAddress } from '../services/geocodingService';
 
 interface LocationItem {
   id: string;
@@ -89,12 +90,23 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
   };
 
   // 💡 검색 결과 리스트에서 주소 하나를 선택했을 때
-  const handleSelectAddress = (item: JusoItem) => {
+  const handleSelectAddress = async (item: JusoItem) => {
     setSearchQuery(item.roadAddrPart1);
     setIsAddressConfirmed(true);
-    // ⚠️ 아직 좌표가 없는 상태 — 다음 단계(네이버 Geocoding 연동) 전까지는
-    // activeCoordinate를 null로 둬서, 최종 버튼 클릭 시 임시 mock 좌표로 처리되게 함
-    setActiveCoordinate(null);
+
+    try {
+      const coord = await geocodeAddress(item.roadAddrPart1);
+      if (coord) {
+        setActiveCoordinate(coord); // ← 실제 좌표 세팅
+      } else {
+        // 도로명으로 안 되면 지번으로 재시도
+        const fallback = await geocodeAddress(item.jibunAddr);
+        setActiveCoordinate(fallback);
+      }
+    } catch (e) {
+      console.error('Geocoding 실패:', e);
+      setActiveCoordinate(null);
+    }
   };
 
   // 4. 하단 최종 분석 버튼 클릭
@@ -106,16 +118,12 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
 
     if (searchType === 'CUSTOM') {
       if (activeCoordinate) {
-        // Geocoding 연동 후에는 이 분기가 항상 타게 됨
         onSearchComplete(activeCoordinate, searchQuery);
       } else {
-        console.log('✏️ 좌표 변환 전 임시 처리 - 선택된 주소:', searchQuery);
-        // [TODO] 네이버 Geocoding 연동 시 이 mock 좌표를 실제 변환 결과로 교체
-        const customMockCoordinate = { lat: 37.5665, lng: 126.9780 };
-        onSearchComplete(customMockCoordinate, searchQuery);
+        alert('주소를 목록에서 선택해주세요.');
+        return; // ← mock 좌표 대신 그냥 막기
       }
     } else {
-      // 칩이나 현재 위치 상태일 때는 저장된 고유 좌표 그대로 전송
       const finalCoord = activeCoordinate || { lat: 35.1468, lng: 126.8481 };
       onSearchComplete(finalCoord, searchQuery);
     }
