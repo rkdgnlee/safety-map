@@ -117,6 +117,7 @@ export default function HomeScreen({ onSearchComplete }: HomeScreenProps) {
     }
 
     if (searchType === 'CUSTOM') {
+      console.log(activeCoordinate, searchQuery)
       if (activeCoordinate) {
         onSearchComplete(activeCoordinate, searchQuery);
       } else {

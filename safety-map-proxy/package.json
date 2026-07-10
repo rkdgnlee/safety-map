@@ -2,10 +2,14 @@
   "name": "safety-map-proxy",
   "version": "1.0.0",
   "engines": {
-    "node": "24.x" 
+    "node": "24.x"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
+    "@types/proj4": "^2.5.6",
     "@vercel/node": "^5.8.22"
+  },
+  "dependencies": {
+    "proj4": "^2.20.9"
   }
 }

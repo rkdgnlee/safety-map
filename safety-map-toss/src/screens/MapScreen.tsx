@@ -1,4 +1,3 @@
-// safety-map-toss/src/screens/MapScreen.tsx
 import { useCallback, useRef, useState } from 'react';
 import { useNaverMap } from '../hooks/useNaverMap';
 import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
@@ -76,7 +75,6 @@ export default function MapScreen({ location, address, pendingCrimeType, onCrime
       fontFamily: '"Pretendard", sans-serif'
     }}>
       
-      {/* 💡 스타일 태그 내부에 자연스러운 무한 말줄임표 애니메이션과 쉬머 펄스 애니메이션을 정의합니다. */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -94,8 +92,8 @@ export default function MapScreen({ location, address, pendingCrimeType, onCrime
         }
 
         @keyframes pulseDim {
-          0%, 100% { background-color: rgba(25, 31, 40, 0.08); }
-          50% { background-color: rgba(25, 31, 40, 0.18); }
+          0%, 100% { background-color: rgba(25, 31, 40, 0.25); }
+          50% { background-color: rgba(25, 31, 40, 0.4); }
         }
         .shimmer-bg {
           animation: pulseDim 1.8s infinite ease-in-out;
@@ -123,7 +121,7 @@ export default function MapScreen({ location, address, pendingCrimeType, onCrime
         )}
       </div>
 
-      {/* 💡 1-2. 오버레이 데이터 로딩 컴포넌트: 지도가 이미 베이스로 떠 있는 상태에서 데이터만 교체될 때 노출 */}
+      {/* 💡 1-2. 전체 화면 잠금 및 딤드 로딩 오버레이: z-index를 최상위(3000)로 올려 조작을 완전히 잠금 처리합니다. */}
       {isLoaded && isOverlayLoading && (
         <div 
           className="shimmer-bg"
@@ -133,26 +131,27 @@ export default function MapScreen({ location, address, pendingCrimeType, onCrime
             left: 0,
             width: '100%',
             height: '100%',
-            backdropFilter: 'blur(1px)',
+            backdropFilter: 'blur(3px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 900, // 칩스(1000)보단 아래, 지도(0)보다는 위에 배치해 조작성을 유지합니다.
-            transition: 'all 0.3s ease'
+            zIndex: 3000, // 칩스나 모달, 하단 버튼까지 모두 뒤로 밀어 터치를 완전히 잠금합니다.
+            transition: 'all 0.3s ease',
+            cursor: 'not-allowed' // 클릭 불가 시각적 힌트
           }}
+          onClick={(e) => e.stopPropagation()} // 클릭 이벤트 전파 차단
         >
           <div style={{
-            padding: '14px 22px',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '20px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.07)',
+            padding: '16px 28px',
+            backgroundColor: '#ffffff',
+            borderRadius: '24px',
+            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12)',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '10px'
           }}>
-            <span style={{ fontSize: '14px' }}>🛡️</span>
-            <span className="loading-dots" style={{ fontSize: '14px', fontWeight: '600', color: '#4e5968', minWidth: '150px' }}>
+            <span style={{ fontSize: '16px' }}>🛡️</span>
+            <span className="loading-dots" style={{ fontSize: '15px', fontWeight: '700', color: '#191f28', minWidth: '155px', textAlign: 'left' }}>
               안전 등급 데이터 분석 중
             </span>
           </div>
