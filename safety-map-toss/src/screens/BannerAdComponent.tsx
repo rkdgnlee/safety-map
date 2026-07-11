@@ -41,8 +41,7 @@ export default function BannerAdComponent({ adGroupId }: { adGroupId: string }) 
     };
   }, [isInitialized, adGroupId, attachBanner]);
 
-  // 고정형 배너: width 100% + height 96px
-  return <div ref={containerRef} style={{ width: '100%', height: '96px' }} />;
+  return <div ref={containerRef} style={{ width: '100%' }} />;
 }
 
 // 초기화 및 배너 부착을 위한 커스텀 훅

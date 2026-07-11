@@ -6,16 +6,38 @@ import AdComponent from './screens/AdComponent';
 export type ScreenType = 'HOME' | 'LOADING_AD' | 'AD' | 'MAP';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenType>('HOME');
+  // 딥링크 혹은 주소 받아오는 곳 
+  const params = new URLSearchParams(window.location.search);
+
+  const initialAddress = params.get('address');
+
+  const initialCoord = (() => {
+    const lat = params.get('lat');
+    const lng = params.get('lng');
+    if (lat && lng) return { lat: parseFloat(lat), lng: parseFloat(lng) };
+    return null;
+  })();
+
+
+  const [currentScreen, setCurrentScreen] = useState<ScreenType>(() => {
+    // 💡 딥링크로 들어온 경우 파라미터 확인
+    const params = new URLSearchParams(window.location.search);
+    const lat = params.get('lat');
+    const lng = params.get('lng');
+    if (lat && lng) return 'HOME'; // HOME으로 시작하되 input에 값 채움
+    return 'HOME';
+  });
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [adContext, setAdContext] = useState<'home' | 'map'>('home'); // ← 추가
   const [pendingCrimeType, setPendingCrimeType] = useState<string | null>(null); // ← 추가
+  const [addressLabel, setAddressLabel] = useState<string | null>(initialAddress);
+  
+  
 
   // 1. 홈 → 광고
   const handleStartProcess = (locationData: { lat: number; lng: number }, addressText: string) => {
     setSelectedLocation(locationData);
-    setSelectedAddress(addressText); // 💡 받아온 한글 주소를 상태에 저장!
+    setAddressLabel(addressText); // 💡 받아온 한글 주소를 상태에 저장!
     setAdContext('home');
     setCurrentScreen('LOADING_AD');
 
@@ -38,7 +60,7 @@ export default function App() {
 
   const handleGoBackHome = () => {
     setSelectedLocation(null);
-    setSelectedAddress(''); // 💡 홈으로 갈 때 주소 초기화
+    setAddressLabel(''); // 💡 홈으로 갈 때 주소 초기화
     setPendingCrimeType(null);
     setCurrentScreen('HOME');
   };
@@ -46,7 +68,11 @@ export default function App() {
   return (
     <div style={{ width: '100%', height: '100vh', backgroundColor: '#fff', overflowX: 'hidden' }}>
       {currentScreen === 'HOME' && (
-        <HomeScreen onSearchComplete={handleStartProcess} />
+        <HomeScreen
+          onSearchComplete={handleStartProcess}
+          initialAddress={initialAddress}   // ← 추가
+          initialCoord={initialCoord}       // ← 추가
+        />
       )}
 
       {currentScreen === 'LOADING_AD' && (
@@ -79,7 +105,7 @@ export default function App() {
       {currentScreen === 'MAP' && (
         <MapScreen
           location={selectedLocation}
-          address={selectedAddress}
+          addressLabel={addressLabel}
           pendingCrimeType={pendingCrimeType} // ← 추가
           onCrimeTypeAdTrigger={handleCrimeTypeAdTrigger} // ← 추가
           onBack={handleGoBackHome}

@@ -90,9 +90,9 @@ export default function AdComponent({ onClose, context }: AdComponentProps) {
   };
 
   // context에 따라 문구 분기
-  const titleText = context === 'map' ? '잠깐! 다른 범죄 유형을 보려면' : '우리 동네 안전 지도';
+  const titleText = context === 'map' ? '잠깐! 이어서 지도를 계속 보려면' : '우리 동네 안전 지도';
   const descText = context === 'map'
-    ? '짧은 광고 시청 후\n다음 범죄 유형을 확인할 수 있어요.'
+    ? '광고 시청 후\n범죄 유형과 근처 지역의 범죄지도를 확인할 수 있어요.'
     : '범죄 발생 현황을 지도로 확인하고\n안전한 경로를 찾아보세요.';
   const buttonLabel = context === 'map' ? '🗺️ 광고 보고 지도 이어보기' : '🛡️ 광고 보고 안전지도 확인하기';
 

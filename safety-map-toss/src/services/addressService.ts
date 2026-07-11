@@ -13,6 +13,11 @@ export interface JusoItem {
   siNm: string;
   sggNm: string;
   emdNm: string;
+  admCd: string;
+  rnMgtSn: string;
+  udrtYn: string;
+  buldMnnm: number;
+  buldSlno: number;
 }
 
 interface JusoApiResponse {

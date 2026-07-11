@@ -63,20 +63,20 @@ export function useNaverMap(
     try {
       const mapInstance = new window.naver.maps.Map(containerRef.current, {
         center: new window.naver.maps.LatLng(options.center.lat, options.center.lng),
-        zoom: options.zoom ?? 15,
+        zoom: options.zoom ?? 16,
       });
 
       mapInstanceRef.current = mapInstance;
-
-      // 💡 지도가 완전히 준비된 후(idle) isReady를 true로
-      const idleListener = window.naver.maps.Event.addListener(
-        mapInstance,
-        'idle',
-        () => {
-          setIsReady(true);
-          window.naver.maps.Event.removeListener(idleListener);
-        }
-      );
+      setIsReady(true);
+      // // 💡 지도가 완전히 준비된 후(idle) isReady를 true로
+      // const idleListener = window.naver.maps.Event.addListener(
+      //   mapInstance,
+      //   'idle',
+      //   () => {
+      //     setIsReady(true);
+      //     window.naver.maps.Event.removeListener(idleListener);
+      //   }
+      // );
     } catch (e) {
       setError('지도 초기화 중 오류가 발생했습니다.');
     }

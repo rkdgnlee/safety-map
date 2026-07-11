@@ -1,13 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNaverMap } from '../hooks/useNaverMap';
 import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
+import FirstGuideToast from '../components/FirstGuideToast';
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
 
 interface MapScreenProps {
   location: { lat: number; lng: number } | null;
-  address: string | null;                 
-  pendingCrimeType: string | null;        
+  addressLabel: string | null; // ← 추가
+  pendingCrimeType: string | null;
   onCrimeTypeAdTrigger: (crimeType: string) => void;
   onBack: () => void;
 }
@@ -23,10 +24,10 @@ const CRIME_TYPES = [
 ];
 const AD_TRIGGER_COUNT = 2;
 
-export default function MapScreen({ location, address, pendingCrimeType, onCrimeTypeAdTrigger, onBack }: MapScreenProps) {
+export default function MapScreen({ location, addressLabel, pendingCrimeType, onCrimeTypeAdTrigger, onBack }: MapScreenProps) {
   const handleGoToNews = () => {
-    const baseAddress = address || "우리 동네";
-    const searchKeyword = `${baseAddress} 범죄 사건사고`;
+    const baseAddress = addressLabel || "우리 동네";
+    const searchKeyword = `${baseAddress} 사건 사고`;
     const naverNewsUrl = `https://search.naver.com/search.naver?where=news&query=${encodeURIComponent(searchKeyword)}`;
     window.open(naverNewsUrl, '_blank');
   };
@@ -55,14 +56,46 @@ export default function MapScreen({ location, address, pendingCrimeType, onCrime
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const { map, isLoaded, error } = useNaverMap(mapContainerRef, {
     center: location ?? DEFAULT_CENTER,
-    zoom: 15,
+    zoom: 16,
   });
   
   // 💡 훅에서 데이터 로딩 상태(isLoading)를 받아옵니다.
-  const { isLoading: isOverlayLoading } = useSafemapOverlay({ 
-    map, 
-    isMapLoaded: isLoaded, 
-    crimeType: selectedType 
+  const handleOverlayAdTrigger = useCallback(() => {
+    onCrimeTypeAdTrigger(selectedType); // 현재 타입 보존한 채로 광고 화면으로
+  }, [onCrimeTypeAdTrigger, selectedType]);
+
+  useSafemapOverlay({
+    map,
+    isMapLoaded: isLoaded,
+    crimeType: selectedType,
+    onAdTrigger: handleOverlayAdTrigger, // ← 추가
+  });
+
+  const handleShare = () => {
+    const baseUrl = window.location.origin; // 또는 토스 미니앱 딥링크 URL
+    const params = new URLSearchParams({
+      lat: String(location?.lat ?? ''),
+      lng: String(location?.lng ?? ''),
+      address: addressLabel ?? '',
+    });
+    const shareUrl = `${baseUrl}?${params.toString()}`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: '우리 동네 안전지도',
+        text: `${addressLabel} 범죄 주의구간을 확인해보세요!`,
+        url: shareUrl,
+      });
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      alert('링크가 복사되었습니다.');
+    }
+  };
+  const { isLoading: isOverlayLoading } = useSafemapOverlay({
+    map,
+    isMapLoaded: isLoaded,
+    crimeType: selectedType,
+    onAdTrigger: handleOverlayAdTrigger,
   });
 
   return (
@@ -120,7 +153,9 @@ export default function MapScreen({ location, address, pendingCrimeType, onCrime
           </div>
         )}
       </div>
-
+      {isLoaded && !isOverlayLoading && (
+        <FirstGuideToast />
+      )}
       {/* 💡 1-2. 전체 화면 잠금 및 딤드 로딩 오버레이: z-index를 최상위(3000)로 올려 조작을 완전히 잠금 처리합니다. */}
       {isLoaded && isOverlayLoading && (
         <div 
@@ -152,7 +187,7 @@ export default function MapScreen({ location, address, pendingCrimeType, onCrime
           }}>
             <span style={{ fontSize: '16px' }}>🛡️</span>
             <span className="loading-dots" style={{ fontSize: '15px', fontWeight: '700', color: '#191f28', minWidth: '155px', textAlign: 'left' }}>
-              안전 등급 데이터 분석 중
+              현재 위치 범죄 정보 가져오는 중 
             </span>
           </div>
         </div>
@@ -209,23 +244,43 @@ export default function MapScreen({ location, address, pendingCrimeType, onCrime
 
       {/* 3. 하단 오버레이 영역 */}
       <div style={{
-        position: 'absolute', bottom: '40px', left: '0', width: '100%', padding: '0 20px',
-        display: 'flex', flexDirection: 'column', gap: '14px', boxSizing: 'border-box', zIndex: 1000
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '10px',
+        marginBottom: '14px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 18px', backgroundColor: '#fff', borderRadius: '25px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', alignSelf: 'center' }}>
-          <span style={{ color: '#0064ff' }}>📍</span>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: '#4e5968' }}>
-            {address || `위도 ${location?.lat.toFixed(4)} · 경도 ${location?.lng.toFixed(4)}`}
-          </span>
-        </div>
-
         <button
-          onClick={() => handleGoToNews()}
+          onClick={() => {
+            const query = encodeURIComponent(`${addressLabel} 범죄 사건`);
+            window.open(`https://search.naver.com/search.naver?where=news&query=${query}`, '_blank');
+          }}
           style={{
-            width: '100%', padding: '18px', backgroundColor: '#0064ff', color: '#fff', border: 'none', borderRadius: '18px', fontSize: '16px', fontWeight: 'bold', boxShadow: '0 8px 20px rgba(0, 100, 255, 0.25)', cursor: 'pointer'
+            padding: '14px',
+            backgroundColor: '#ffffff',
+            color: '#191f28',
+            border: '1px solid #e5e8eb',
+            borderRadius: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
           }}
         >
-          🔍 이 근처 뉴스 결과로 이동
+          📰 이 근처 뉴스
+        </button>
+        <button
+          onClick={handleShare}
+          style={{
+            padding: '14px',
+            backgroundColor: '#ffffff',
+            color: '#191f28',
+            border: '1px solid #e5e8eb',
+            borderRadius: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+          }}
+        >
+          🔗 지도 공유
         </button>
       </div>
 
