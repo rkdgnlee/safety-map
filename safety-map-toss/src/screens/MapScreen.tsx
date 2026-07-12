@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNaverMap } from '../hooks/useNaverMap';
 import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
-import FirstGuideToast from '../components/FirstGuideToast';
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
 
@@ -14,13 +13,13 @@ interface MapScreenProps {
 }
 
 const CRIME_TYPES = [
-  { id: 'all', label: '5대 범죄 전체' },
-  { id: 'child', label: '어린이 대상 범죄' },
+  { id: 'all',      label: '5대 범죄 전체' },
+  { id: 'child',    label: '어린이 범죄' },
+  { id: 'elderly',  label: '노인 범죄' },
+  { id: 'sex',      label: '성폭력' },
   { id: 'violence', label: '폭력' },
-  { id: 'fraud', label: '사기' },
-  { id: 'robbery', label: '강도' },
-  { id: 'murder', label: '살인' },
-  { id: 'sex', label: '성범죄' },
+  { id: 'robbery',  label: '강도' },
+  { id: 'theft',    label: '절도' },         
 ];
 const AD_TRIGGER_COUNT = 2;
 
@@ -34,7 +33,7 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
   
   const [selectedType, setSelectedType] = useState(pendingCrimeType ?? 'all');
   const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
-
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const crimeViewCountRef = useRef(0);
 
   const handleSelectType = useCallback((typeId: string) => {
@@ -64,13 +63,6 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
     onCrimeTypeAdTrigger(selectedType); // 현재 타입 보존한 채로 광고 화면으로
   }, [onCrimeTypeAdTrigger, selectedType]);
 
-  useSafemapOverlay({
-    map,
-    isMapLoaded: isLoaded,
-    crimeType: selectedType,
-    onAdTrigger: handleOverlayAdTrigger, // ← 추가
-  });
-
   const handleShare = () => {
     const baseUrl = window.location.origin; // 또는 토스 미니앱 딥링크 URL
     const params = new URLSearchParams({
@@ -91,7 +83,7 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
       alert('링크가 복사되었습니다.');
     }
   };
-  const { isLoading: isOverlayLoading } = useSafemapOverlay({
+  const { isLoading: isOverlayLoading, fetchOverlay } = useSafemapOverlay({
     map,
     isMapLoaded: isLoaded,
     crimeType: selectedType,
@@ -153,9 +145,9 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
           </div>
         )}
       </div>
-      {isLoaded && !isOverlayLoading && (
+      {/* {isLoaded && !isOverlayLoading && (
         <FirstGuideToast />
-      )}
+      )} */}
       {/* 💡 1-2. 전체 화면 잠금 및 딤드 로딩 오버레이: z-index를 최상위(3000)로 올려 조작을 완전히 잠금 처리합니다. */}
       {isLoaded && isOverlayLoading && (
         <div 
@@ -211,17 +203,129 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
             🏠
           </button>
 
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '14px', padding: '10px 16px', backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: '14px',
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '20px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            alignSelf: 'flex-end',
+            alignItems: 'center',
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFBC4', boxShadow: '0 1px 3px rgba(0,0,0,0.2), inset 0 0 0 0.5px rgba(0,0,0,0.1)' }} /> 쾌적
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} /> 안전
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} /> 보통
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500' }} /> 주의
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} /> 경계
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d' }} /> 위험
             </div>
+
+            <button
+              onClick={() => setIsInfoOpen(true)}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                backgroundColor: '#d1d6db',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                marginLeft: '2px',
+                flexShrink: 0,
+              }}
+            >
+              i
+            </button>
           </div>
+          {isInfoOpen && (
+            <div
+              onClick={() => setIsInfoOpen(false)}
+              style={{
+                position: 'fixed',
+                top: 0, left: 0,
+                width: '100vw', height: '100vh',
+                backgroundColor: 'rgba(0,0,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 200,
+                padding: '20px',
+                boxSizing: 'border-box',
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '100%',
+                  maxWidth: '320px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#191f28' }}>
+                    데이터 출처
+                  </h3>
+                  <button
+                    onClick={() => setIsInfoOpen(false)}
+                    style={{
+                      width: '28px', height: '28px',
+                      borderRadius: '50%',
+                      backgroundColor: '#f2f4f6',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#4e5968',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#4e5968', lineHeight: '1.6' }}>
+                  본 서비스는 경찰청에서 제공하는 행정구역별 범죄 밀도분석 공간정보를 활용합니다.
+                </p>
+
+                <div style={{
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '12px',
+                  padding: '14px',
+                }}>
+                  <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#8b95a1', fontWeight: '600' }}>
+                    출처
+                  </p>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#191f28', fontWeight: '500' }}>
+                    행정안전부 제공 생활안전지도
+                  </p>
+                  <a
+                    href="https://www.safemap.go.kr"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '13px', color: '#0064ff', textDecoration: 'none' }}
+                  >
+                    https://www.safemap.go.kr
+                  </a>
+
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="no-scrollbar" style={{ width: '100%', display: 'flex', gap: '8px', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch', padding: '0 20px 4px 20px', boxSizing: 'border-box' }}>
@@ -241,48 +345,85 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
           ))}
         </div>
       </div>
-
-      {/* 3. 하단 오버레이 영역 */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        position: 'absolute',
+        bottom: '40px',
+        left: '0',
+        width: '100%',
+        padding: '0 20px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
         gap: '10px',
-        marginBottom: '14px',
+        boxSizing: 'border-box',
+        zIndex: 10
       }}>
+        {/* 이 지역 검색 — 전체 너비 */}
         <button
-          onClick={() => {
-            const query = encodeURIComponent(`${addressLabel} 범죄 사건`);
-            window.open(`https://search.naver.com/search.naver?where=news&query=${query}`, '_blank');
-          }}
+          onClick={fetchOverlay}
+          disabled={isOverlayLoading}
           style={{
-            padding: '14px',
-            backgroundColor: '#ffffff',
-            color: '#191f28',
-            border: '1px solid #e5e8eb',
-            borderRadius: '16px',
+            padding: '14px 28px',
+            backgroundColor: isOverlayLoading ? '#4e5968' : '#191f28', // 검정 배경
+            color: '#ffffff', // 흰색 텍스트
+            border: 'none',
+            borderRadius: '25px',
             fontSize: '14px',
             fontWeight: '600',
-            cursor: 'pointer',
+            cursor: isOverlayLoading ? 'not-allowed' : 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            opacity: isOverlayLoading ? 0.6 : 1,
           }}
         >
-          📰 이 근처 뉴스
+          {isOverlayLoading ? '🔍 불러오는 중...' : '🔍 이 지역 검색'}
         </button>
-        <button
-          onClick={handleShare}
-          style={{
-            padding: '14px',
-            backgroundColor: '#ffffff',
-            color: '#191f28',
-            border: '1px solid #e5e8eb',
-            borderRadius: '16px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-          }}
-        >
-          🔗 지도 공유
-        </button>
+
+        {/* 뉴스 | 공유 — 2열 */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '10px',
+          width: '100%',
+        }}>
+          <button
+            onClick={handleGoToNews}
+            style={{
+              padding: '14px',
+              backgroundColor: '#ffffff',
+              color: '#191f28',
+              border: '1px solid #e5e8eb',
+              borderRadius: '16px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            }}
+          >
+            📰 이 근처 뉴스
+          </button>
+          <button
+            onClick={handleShare}
+            style={{
+              padding: '14px',
+              backgroundColor: '#ffffff',
+              color: '#191f28',
+              border: '1px solid #e5e8eb',
+              borderRadius: '16px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            }}
+          >
+            🔗 지도 공유
+          </button>
+        </div>
       </div>
+      
 
       {/* 4. 홈화면 이동 여부를 묻는 모달 */}
       {isHomeModalOpen && (
