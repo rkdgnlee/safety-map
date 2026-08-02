@@ -1,3 +1,4 @@
+// safety-map-proxy/api/news.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -19,17 +20,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const apiRes = await fetch(
-      `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=3&sort=date`,
+      // ✅ 변경된 NCP 엔드포인트
+      `https://naverapihub.apigw.ntruss.com/search/v1/news?query=${encodeURIComponent(query)}&display=3&sort=date`,
       {
         headers: {
-          'X-Naver-Client-Id': clientId,
-          'X-Naver-Client-Secret': clientSecret,
+          // ✅ 헤더 이름도 NCP 방식으로
+          'X-NCP-APIGW-API-KEY-ID': clientId,
+          'X-NCP-APIGW-API-KEY': clientSecret,
         },
       }
     );
 
     if (!apiRes.ok) {
-      return res.status(apiRes.status).json({ error: '뉴스 검색 실패' });
+      const text = await apiRes.text();
+      console.error('네이버 뉴스 API 오류:', text);
+      return res.status(apiRes.status).json({ error: '뉴스 검색 실패', detail: text });
     }
 
     const data = await apiRes.json();
