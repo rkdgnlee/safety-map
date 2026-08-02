@@ -19,9 +19,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const { query, crimeType } = req.query;
+
+    const crimeKeyword: Record<string, string> = {
+      all: '범죄 사건',
+      child: '아동 어린이 범죄',
+      elderly: '노인 범죄',
+      sex: '성범죄 성폭력',
+      violence: '폭행 폭력',
+      robbery: '강도',
+      theft: '절도',
+    };
+
+    const keyword = crimeKeyword[crimeType as string] ?? '범죄 사건';
+    const fullQuery = `${query} ${keyword}`;
     const apiRes = await fetch(
-      // ✅ 변경된 NCP 엔드포인트
-      `https://naverapihub.apigw.ntruss.com/search/v1/news?query=${encodeURIComponent(query)}&display=3&sort=date`,
+      `https://naverapihub.apigw.ntruss.com/search/v1/news?query=${encodeURIComponent(fullQuery)}&display=3&sort=date`,
       {
         headers: {
           // ✅ 헤더 이름도 NCP 방식으로

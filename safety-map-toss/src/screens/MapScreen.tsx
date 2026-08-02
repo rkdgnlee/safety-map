@@ -12,7 +12,15 @@ interface MapScreenProps {
   onCrimeTypeAdTrigger: (crimeType: string) => void;
   onBack: () => void;
 }
-
+const crimeKeyword: Record<string, string> = {
+  all: '범죄 사건',
+  child: '아동 어린이 범죄',
+  elderly: '노인 범죄',
+  sex: '성범죄 성폭력',
+  violence: '폭행 폭력',
+  robbery: '강도',
+  theft: '절도',
+};
 const CRIME_TYPES = [
   { id: 'all',      label: '5대 범죄 전체' },
   { id: 'child',    label: '어린이 범죄' },
@@ -238,45 +246,33 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
           </button>
 
           <div style={{
-            display: 'flex',
-            flexDirection: 'row',
-            gap: '14px',
+            display: 'flex', flexDirection: 'row', gap: '14px',
             padding: '10px 16px',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
+            backgroundColor: '#ffffff',
             borderRadius: '20px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-            alignSelf: 'flex-end',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             alignItems: 'center',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} /> 안전
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffeb3b', border: '1px solid #e0d000', flexShrink: 0 }} />
+              빈도 낮음
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500' }} /> 주의
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500', flexShrink: 0 }} />
+              중간
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d' }} /> 위험
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d', flexShrink: 0 }} />
+              심함
             </div>
-
             <button
               onClick={() => setIsInfoOpen(true)}
               style={{
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                backgroundColor: '#d1d6db',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                marginLeft: '2px',
-                flexShrink: 0,
+                width: '18px', height: '18px', borderRadius: '50%',
+                backgroundColor: '#d1d6db', border: 'none', cursor: 'pointer',
+                fontSize: '11px', fontWeight: 'bold', color: '#ffffff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 0, marginLeft: '2px', flexShrink: 0,
               }}
             >
               i
@@ -335,6 +331,40 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
                 <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#4e5968', lineHeight: '1.6' }}>
                   본 서비스는 경찰청에서 제공하는 행정구역별 범죄 밀도분석 공간정보를 활용합니다.
                 </p>
+
+                {/* 💡 여기에 범례 추가 */}
+                <div style={{ marginBottom: '16px' }}>
+                  <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: '700', color: '#191f28' }}>
+                    📊 색상 범례
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { color: '#ffeb3b', border: '#e0d000', label: '빈도 낮음', desc: '간혹 발생하는 구간' },
+                      { color: '#ff9500', border: '#ff9500', label: '중간',      desc: '주의가 필요한 구간' },
+                      { color: '#ff4d4d', border: '#ff4d4d', label: '심함',      desc: '자주 발생하는 구간' },
+                    ].map((item) => (
+                      <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{
+                          width: '14px', height: '14px', borderRadius: '50%',
+                          backgroundColor: item.color,
+                          border: `1px solid ${item.border}`,
+                          flexShrink: 0,
+                        }} />
+                        <div>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#191f28' }}>
+                            {item.label}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#8b95a1', marginLeft: '6px' }}>
+                            {item.desc}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ margin: '10px 0 0', fontSize: '11px', color: '#b0b8c1', lineHeight: '1.5' }}>
+                    * 경찰청 통계 기반 밀도분석으로, 실제 위험도와 다를 수 있습니다.
+                  </p>
+                </div>
 
                 <div style={{
                   backgroundColor: '#f9fafb',
@@ -606,6 +636,38 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
                 </div>
               </a>
             ))}
+            {!isNewsLoading && (
+              <button
+                onClick={() => {
+                  const keyword = crimeKeyword[selectedType] ?? '범죄 사건';
+                  const query = encodeURIComponent(`${addressLabel ?? ''} ${keyword}`);
+                  window.open(
+                    `https://search.naver.com/search.naver?where=news&query=${query}&sort=1`,
+                    '_blank'
+                  );
+                }}
+                style={{
+                  width: '100%',
+                  marginTop: '16px',
+                  padding: '14px',
+                  backgroundColor: '#f2f4f6',
+                  color: '#4e5968',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                🔍 네이버에서 더 많은 뉴스 보기
+              </button>
+            )}
+
+
           </div>
         </div>
       )}
