@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNaverMap } from '../hooks/useNaverMap';
 import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
+import { getTossShareLink, share } from '@apps-in-toss/web-framework';
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
 
@@ -23,14 +24,16 @@ const CRIME_TYPES = [
 ];
 const AD_TRIGGER_COUNT = 2;
 
+const PROXY_BASE_URL = import.meta.env.VITE_PROXY_BASE_URL;
+
+interface NewsItem {
+  title: string;
+  description: string;
+  link: string;
+  originallink: string;
+  pubDate: string;
+}
 export default function MapScreen({ location, addressLabel, pendingCrimeType, onCrimeTypeAdTrigger, onBack }: MapScreenProps) {
-  const handleGoToNews = () => {
-    const baseAddress = addressLabel || "우리 동네";
-    const searchKeyword = `${baseAddress} 사건 사고`;
-    const naverNewsUrl = `https://search.naver.com/search.naver?where=news&query=${encodeURIComponent(searchKeyword)}`;
-    window.open(naverNewsUrl, '_blank');
-  };
-  
   const [selectedType, setSelectedType] = useState(pendingCrimeType ?? 'all');
   const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -63,24 +66,25 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
     onCrimeTypeAdTrigger(selectedType); // 현재 타입 보존한 채로 광고 화면으로
   }, [onCrimeTypeAdTrigger, selectedType]);
 
-  const handleShare = () => {
-    const baseUrl = window.location.origin; // 또는 토스 미니앱 딥링크 URL
-    const params = new URLSearchParams({
-      lat: String(location?.lat ?? ''),
-      lng: String(location?.lng ?? ''),
-      address: addressLabel ?? '',
-    });
-    const shareUrl = `${baseUrl}?${params.toString()}`;
-
-    if (navigator.share) {
-      navigator.share({
-        title: '우리 동네 안전지도',
-        text: `${addressLabel} 범죄 주의구간을 확인해보세요!`,
-        url: shareUrl,
+  const handleShare = async () => {
+    try {
+      const params = new URLSearchParams({
+        lat: String(location?.lat ?? ''),
+        lng: String(location?.lng ?? ''),
+        address: addressLabel ?? '',
       });
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      alert('링크가 복사되었습니다.');
+
+      // 💡 intoss://<앱이름>?파라미터 형식
+      const deepLink = `intoss://safety-map?${params.toString()}`;
+
+      const tossLink = await getTossShareLink(
+        deepLink,
+        'https://static.toss.im/icons/png/4x/icon-share-dots-mono.png', // 공유 썸네일 이미지
+      );
+
+      await share({ message: tossLink });
+    } catch (e) {
+      console.error('공유 실패:', e);
     }
   };
   const { isLoading: isOverlayLoading, fetchOverlay } = useSafemapOverlay({
@@ -89,6 +93,36 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
     crimeType: selectedType,
     onAdTrigger: handleOverlayAdTrigger,
   });
+
+  const [isNewsOpen, setIsNewsOpen] = useState(false);
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [isNewsLoading, setIsNewsLoading] = useState(false);
+
+  const handleGoToNews = async () => {
+    setIsNewsOpen(true);
+    setIsNewsLoading(true);
+    try {
+      const query = `${addressLabel ?? '우리동네'} 사건 사고`;
+      const res = await fetch(
+        `${PROXY_BASE_URL}/api/news?query=${encodeURIComponent(query)}`
+      );
+      const data = await res.json();
+      setNewsItems(data.items ?? []);
+    } catch {
+      setNewsItems([]);
+    } finally {
+      setIsNewsLoading(false);
+    }
+  };
+  // HTML 태그 + 특수문자 제거 유틸
+  const stripHtml = (str: string) =>
+    str.replace(/<[^>]*>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+
+  // 날짜 포맷
+  const formatDate = (pubDate: string) => {
+    const d = new Date(pubDate);
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
 
   return (
     <div style={{
@@ -454,6 +488,124 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
                 확인
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 뉴스 바텀시트 */}
+      {isNewsOpen && (
+        <div
+          onClick={() => setIsNewsOpen(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0,
+            width: '100vw', height: '100vh',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            zIndex: 2000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              backgroundColor: '#ffffff',
+              borderRadius: '24px 24px 0 0',
+              padding: '16px 20px 40px',
+              maxHeight: '65vh',
+              overflowY: 'auto',
+            }}
+          >
+            {/* 핸들바 */}
+            <div style={{
+              width: '36px', height: '4px',
+              backgroundColor: '#e5e8eb', borderRadius: '2px',
+              margin: '0 auto 20px',
+            }} />
+
+            {/* 헤더 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#191f28' }}>
+                📰 {addressLabel} 근처 뉴스
+              </h3>
+              <button
+                onClick={() => setIsNewsOpen(false)}
+                style={{
+                  width: '28px', height: '28px', borderRadius: '50%',
+                  backgroundColor: '#f2f4f6', border: 'none',
+                  fontSize: '14px', color: '#4e5968', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 로딩 */}
+            {isNewsLoading && (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: '#8b95a1', fontSize: '14px' }}>
+                뉴스 불러오는 중...
+              </div>
+            )}
+
+            {/* 결과 없음 */}
+            {!isNewsLoading && newsItems.length === 0 && (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: '#8b95a1', fontSize: '14px' }}>
+                관련 뉴스가 없습니다.
+              </div>
+            )}
+
+            {/* 뉴스 카드 목록 */}
+            {!isNewsLoading && newsItems.map((item, idx) => ( 
+              <a
+                key={idx}
+                href={item.originallink || item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none', display: 'block' }}
+              >
+                <div style={{
+                  padding: '14px 0',
+                  borderBottom: idx !== newsItems.length - 1 ? '1px solid #f2f4f6' : 'none',
+                }}>
+                  {/* 출처 + 날짜 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <span style={{
+                      fontSize: '11px', fontWeight: '600', color: '#0064ff',
+                      backgroundColor: '#eef4ff', padding: '2px 8px', borderRadius: '10px',
+                    }}>
+                      {item.originallink?.split('/')[2]?.replace('www.', '') ?? '뉴스'}
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#b0b8c1' }}>
+                      {formatDate(item.pubDate)}
+                    </span>
+                  </div>
+
+                  {/* 제목 */}
+                  <p style={{
+                    margin: '0 0 4px 0',
+                    fontSize: '14px', fontWeight: '600', color: '#191f28',
+                    lineHeight: '1.5',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}>
+                    {stripHtml(item.title)}
+                  </p>
+
+                  {/* 요약 */}
+                  <p style={{
+                    margin: 0,
+                    fontSize: '12px', color: '#8b95a1', lineHeight: '1.5',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}>
+                    {stripHtml(item.description)}
+                  </p>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       )}

@@ -253,7 +253,9 @@ export default function HomeScreen({
           }}
         />
       </div>
-
+      <div style={{ width: '100%', minHeight: '250px', marginTop: '10px', marginBottom: '10px'}}>
+        <BannerAdComponent adGroupId={'ait.v2.live.8d1c445b1d6e44a3'} />
+      </div>
       {/* 💡 주소 검색 결과 드롭다운 */}
       {showDropdown && (
         <div
@@ -290,7 +292,7 @@ export default function HomeScreen({
               검색 결과가 없습니다.
             </div>
           )}
-
+          
           {!loading && !error && results.map((item, idx) => (
             <button
               key={`${item.bdMgtSn ?? idx}-${idx}`}
@@ -410,9 +412,7 @@ export default function HomeScreen({
         ))}
       </div>
 
-      <div style={{ width: '100%', minHeight: '250px', marginTop: '16px' }}>
-        <BannerAdComponent adGroupId={'ait.v2.live.8d1c445b1d6e44a3'} />
-      </div>
+      
     </div>
 
     {/* 💡 하단 고정 버튼 */}

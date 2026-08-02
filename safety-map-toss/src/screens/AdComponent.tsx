@@ -90,23 +90,44 @@ export default function AdComponent({ onClose, context }: AdComponentProps) {
   };
 
   // context에 따라 문구 분기
-  const titleText = context === 'map' ? '잠깐! 이어서 지도를 계속 보려면' : '우리 동네 안전 지도';
-  const descText = context === 'map'
-    ? '광고 시청 후\n범죄 유형과 근처 지역의 범죄지도를 확인할 수 있어요.'
-    : '범죄 발생 현황을 지도로 확인하고\n안전한 경로를 찾아보세요.';
+  // const titleText = context === 'map' ? '잠깐! 이어서 지도를 계속 보려면' : '우리 동네 안전 지도';
+  // const descText = context === 'map'
+  //   ? '광고 시청 후\n범죄 유형과 근처 지역의 범죄지도를 확인할 수 있어요.'
+  //   : '범죄 발생 현황을 지도로 확인하고\n안전한 경로를 찾아보세요.';
   const buttonLabel = context === 'map' ? '🗺️ 광고 보고 지도 이어보기' : '🛡️ 광고 보고 안전지도 확인하기';
 
   return (
     <div style={s.wrapper}>
+
       <div style={s.content}>
-        <div style={s.iconWrap}>{context === 'map' ? '🗺️' : '🛡️'}</div>
-        <h1 style={s.title}>{titleText}</h1>
-        <p style={s.desc}>{descText}</p>
+        <div style={s.iconWrap}>🛡️</div>
+        <h1 style={s.title}>
+          {context === 'map' ? '잠깐! 다른 범죄 유형을 보려면' : '우리 동네 범죄 주의구간 확인'}
+        </h1>
+        <p style={s.desc}>
+          {context === 'map'
+            ? '짧은 광고 시청 후\n다음 범죄 유형을 확인할 수 있어요.'
+            : '경찰청 공식 범죄 통계를 지도로 확인하고\n우리 동네 안전을 점검해보세요.'}
+        </p>
+
+        {/* 💡 데이터 출처 강조 카드 */}
+        <div style={s.sourceCard}>
+          <div style={s.sourceHeader}>
+            <span style={s.sourceBadge}>📊 공식 데이터</span>
+            <span style={s.updateBadge}>2025.12.29 기준</span>
+          </div>
+          <p style={s.sourceName}>
+            경찰청 제공 행정구역별 범죄별{'\n'}밀도분석 공간정보
+          </p>
+          <p style={s.sourceDesc}>
+            1년 단위로 갱신되는 공식 범죄 통계를{'\n'}생활안전지도(safemap.go.kr)를 통해 제공합니다.
+          </p>
+        </div>
 
         <div style={s.infoBox}>
           <div style={s.infoRow}><span>📍</span><span>어린이·노인 대상 범죄 주의구간</span></div>
           <div style={s.infoRow}><span>🔍</span><span>5대 범죄 유형별 위험 구간</span></div>
-          <div style={s.infoRow}><span>📊</span><span>경찰청 공공데이터 기반 실시간 제공</span></div>
+          <div style={s.infoRow}><span>🏛️</span><span>행정안전부 생활안전지도 공식 연계</span></div>
         </div>
       </div>
 
@@ -183,5 +204,53 @@ const s: Record<string, CSSProperties> = {
     justifyContent: 'center',
     transition: 'background-color 0.2s ease, color 0.2s ease',
     outline: 'none',
+  },
+  sourceCard: {
+    width: '100%',
+    backgroundColor: '#f0f4ff',
+    border: '1px solid #c7d7ff',
+    borderRadius: '16px',
+    padding: '16px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    textAlign: 'left',
+  },
+  sourceHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  sourceBadge: {
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#0064ff',
+    backgroundColor: '#dce8ff',
+    padding: '3px 10px',
+    borderRadius: '10px',
+  },
+  updateBadge: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#8b95a1',
+    backgroundColor: '#f2f4f6',
+    padding: '3px 10px',
+    borderRadius: '10px',
+  },
+  sourceName: {
+    margin: 0,
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#191f28',
+    lineHeight: '1.5',
+    whiteSpace: 'pre-line',
+  },
+  sourceDesc: {
+    margin: 0,
+    fontSize: '12px',
+    color: '#4e5968',
+    lineHeight: '1.6',
+    whiteSpace: 'pre-line',
   },
 };
