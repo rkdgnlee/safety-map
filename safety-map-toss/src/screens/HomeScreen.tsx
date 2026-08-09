@@ -3,6 +3,7 @@ import { useAddressSearch } from '../hooks/useAddressSearch';
 import { JusoItem } from '../services/addressService';
 import BannerAdComponent from './BannerAdComponent';
 import { geocodeAddress } from '../services/geocodingService';
+import FeatureBanner from '../components/FeatureBanner';
 
 interface LocationItem {
   id: string;
@@ -216,17 +217,7 @@ export default function HomeScreen({
           boxSizing: 'border-box',
         }}
       >
-        {/* 타이틀 */}
-        <div style={{ marginTop: '24px', marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#191f28', margin: '0 0 6px 0', letterSpacing: '-0.5px' }}>
-            ⚠️ 내 동네의 범죄 주의 구간을 확인해봐요
-          </h1>
-          <p style={{ fontSize: '12px', color: '#b0b8c1', margin: 0, lineHeight: '1.5', letterSpacing: '-0.2px' }}>
-            경찰청에서 제공하는 '행정구역별 범죄별 밀도분석 공간정보'를 그대로 사용한 데이터입니다. 참고로 활용해보세요!
-          </p>
-        </div>
-
-
+        <FeatureBanner />
 
       {/* 검색창 */}
       <div style={{ position: 'relative'}}>
