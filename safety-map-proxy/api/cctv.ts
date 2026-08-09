@@ -20,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // 대괄호 파라미터는 URLSearchParams가 인코딩해버려서 수동으로 조합
-    let url = `https://apis.data.go.kr/1741000/cctv_info/info?serviceKey=${encodeURIComponent(serviceKey)}&pageNo=1&numOfRows=100&returnType=json&cond%5BLCTN_ROAD_NM_ADDR%3A%3ALIKE%5D=${encodeURIComponent(roadName)}`;
+    let url = `https://apis.data.go.kr/1741000/cctv_info/info?serviceKey=${serviceKey}&pageNo=1&numOfRows=100&returnType=json&cond%5BLCTN_ROAD_NM_ADDR%3A%3ALIKE%5D=${encodeURIComponent(roadName)}`;
 
     if (sggCode && typeof sggCode === 'string') {
       url += `&cond%5BOPN_ATMY_GRP_CD%3A%3AEQ%5D=${encodeURIComponent(sggCode)}`;
