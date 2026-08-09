@@ -37,9 +37,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const data = await apiRes.json();
-    console.log('[cctv] 총 건수:', data.totalCount);
 
-    const items = (data.data ?? [])
+    // 실제 응답 구조: { response: { header, body: { items: { item: [...] }, totalCount, ... } } }
+    const body = data?.response?.body;
+    const rawItems = body?.items?.item ?? [];
+    // 결과가 1건일 때 배열이 아니라 객체 단건으로 오는 API도 있어 방어적으로 처리
+    const rawItemsArray = Array.isArray(rawItems) ? rawItems : [rawItems];
+
+    console.log('[cctv] 총 건수:', body?.totalCount);
+
+    const items = rawItemsArray
       .filter((item: any) => item.WGS84_LAT && item.WGS84_LOT)
       .map((item: any) => ({
         lat: parseFloat(item.WGS84_LAT),
@@ -57,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sggCode: item.OPN_ATMY_GRP_CD,
       }));
 
-    return res.status(200).json({ items, total: data.totalCount });
+    return res.status(200).json({ items, total: body?.totalCount ?? items.length });
 
   } catch (err) {
     console.error('[cctv] proxy error:', err);
