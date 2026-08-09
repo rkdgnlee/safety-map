@@ -1,9 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNaverMap } from '../hooks/useNaverMap';
 import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
+import { NATURAL_HAZARD_LAYER_LIST } from '../constants/naturalHazardLayers';
 import { getTossShareLink, share } from '@apps-in-toss/web-framework';
+import { useNaturalHazardOverlays } from '../hooks/useNaturalHazardOverlays';
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
+
+type MapTab = 'crime' | 'hazard';
 
 interface MapScreenProps {
   location: { lat: number; lng: number } | null;
@@ -43,6 +47,7 @@ interface NewsItem {
 }
 export default function MapScreen({ location, addressLabel, pendingCrimeType, onCrimeTypeAdTrigger, onBack }: MapScreenProps) {
   const [selectedType, setSelectedType] = useState(pendingCrimeType ?? 'all');
+  const [mapTab, setMapTab] = useState<MapTab>('crime');
   const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const crimeViewCountRef = useRef(0);
@@ -101,6 +106,28 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
     crimeType: selectedType,
     onAdTrigger: handleOverlayAdTrigger,
   });
+
+  const {
+    activeLayers: activeHazardLayers,
+    isLoading: isHazardLoading,
+    toggleLayer: toggleHazardLayer,
+    refreshActiveLayers: refreshHazardLayers,
+  } = useNaturalHazardOverlays({
+    map,
+    isMapLoaded: isLoaded,
+    onAdTrigger: handleOverlayAdTrigger,
+  });
+
+  // 탭에 따라 "이 지역 검색" 버튼이 다른 레이어를 갱신하도록 분기
+  const handleSearchThisArea = useCallback(() => {
+    if (mapTab === 'crime') {
+      fetchOverlay();
+    } else {
+      refreshHazardLayers();
+    }
+  }, [mapTab, fetchOverlay, refreshHazardLayers]);
+
+  const isAnyLoading = mapTab === 'crime' ? isOverlayLoading : isHazardLoading;
 
   const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
@@ -191,7 +218,7 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
         <FirstGuideToast />
       )} */}
       {/* 💡 1-2. 전체 화면 잠금 및 딤드 로딩 오버레이: z-index를 최상위(3000)로 올려 조작을 완전히 잠금 처리합니다. */}
-      {isLoaded && isOverlayLoading && (
+      {isLoaded && isAnyLoading && (
         <div 
           className="shimmer-bg"
           style={{
@@ -219,9 +246,9 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
             alignItems: 'center',
             gap: '10px'
           }}>
-            <span style={{ fontSize: '16px' }}>🛡️</span>
+            <span style={{ fontSize: '16px' }}>{mapTab === 'crime' ? '🛡️' : '⚠️'}</span>
             <span className="loading-dots" style={{ fontSize: '15px', fontWeight: '700', color: '#191f28', minWidth: '155px', textAlign: 'left' }}>
-              현재 위치 범죄 정보 가져오는 중 
+              {mapTab === 'crime' ? '현재 위치 범죄 정보 가져오는 중 ' : '자연재해 정보 가져오는 중 '}
             </span>
           </div>
         </div>
@@ -235,6 +262,40 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
         zIndex: 1000, 
         boxSizing: 'border-box'
       }}>
+        {/* 탭 스위처: 범죄 지도 / 자연재해 지도 */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{
+            display: 'flex',
+            backgroundColor: '#ffffff',
+            borderRadius: '20px',
+            padding: '4px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          }}>
+            {([
+              { id: 'crime' as MapTab, label: '🛡️ 범죄' },
+              { id: 'hazard' as MapTab, label: '⚠️ 자연재해' },
+            ]).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setMapTab(tab.id)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '16px',
+                  border: 'none',
+                  backgroundColor: mapTab === tab.id ? '#191f28' : 'transparent',
+                  color: mapTab === tab.id ? '#ffffff' : '#8b95a1',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
           <button
             onClick={() => setIsHomeModalOpen(true)}
@@ -253,18 +314,29 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             alignItems: 'center',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffeb3b', border: '1px solid #e0d000', flexShrink: 0 }} />
-              빈도 낮음
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500', flexShrink: 0 }} />
-              중간
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d', flexShrink: 0 }} />
-              심함
-            </div>
+            {mapTab === 'crime' ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffeb3b', border: '1px solid #e0d000', flexShrink: 0 }} />
+                  빈도 낮음
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500', flexShrink: 0 }} />
+                  중간
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d', flexShrink: 0 }} />
+                  심함
+                </div>
+              </>
+            ) : (
+              NATURAL_HAZARD_LAYER_LIST.map((layer) => (
+                <div key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: activeHazardLayers.has(layer.id) ? '#333' : '#c1c7cd' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: layer.color, flexShrink: 0, opacity: activeHazardLayers.has(layer.id) ? 1 : 0.4 }} />
+                  {layer.label.replace(' 위험', '').replace(' 발생이력', '').replace('홍수위험', '')}
+                </div>
+              ))
+            )}
             <button
               onClick={() => setIsInfoOpen(true)}
               style={{
@@ -393,20 +465,42 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
         </div>
 
         <div className="no-scrollbar" style={{ width: '100%', display: 'flex', gap: '8px', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch', padding: '0 20px 4px 20px', boxSizing: 'border-box' }}>
-          {CRIME_TYPES.map((type) => (
-            <button
-              key={type.id}
-              onClick={() => handleSelectType(type.id)} 
-              style={{
-                flexShrink: 0, padding: '10px 16px', borderRadius: '20px', border: 'none',
-                backgroundColor: selectedType === type.id ? '#191f28' : 'rgba(255,255,255,0.9)',
-                color: selectedType === type.id ? '#fff' : '#4e5968', fontSize: '13px', fontWeight: '600',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.05)', backdropFilter: 'blur(5px)', cursor: 'pointer', margin: '4px 0px'
-              }}
-            >
-              {type.label}
-            </button>
-          ))}
+          {mapTab === 'crime' ? (
+            CRIME_TYPES.map((type) => (
+              <button
+                key={type.id}
+                onClick={() => handleSelectType(type.id)} 
+                style={{
+                  flexShrink: 0, padding: '10px 16px', borderRadius: '20px', border: 'none',
+                  backgroundColor: selectedType === type.id ? '#191f28' : 'rgba(255,255,255,0.9)',
+                  color: selectedType === type.id ? '#fff' : '#4e5968', fontSize: '13px', fontWeight: '600',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.05)', backdropFilter: 'blur(5px)', cursor: 'pointer', margin: '4px 0px'
+                }}
+              >
+                {type.label}
+              </button>
+            ))
+          ) : (
+            NATURAL_HAZARD_LAYER_LIST.map((layer) => {
+              const isActive = activeHazardLayers.has(layer.id);
+              return (
+                <button
+                  key={layer.id}
+                  onClick={() => toggleHazardLayer(layer.id)}
+                  style={{
+                    flexShrink: 0, padding: '10px 16px', borderRadius: '20px',
+                    border: isActive ? 'none' : '1px solid #e5e8eb',
+                    backgroundColor: isActive ? layer.color : 'rgba(255,255,255,0.9)',
+                    color: isActive ? '#fff' : '#4e5968', fontSize: '13px', fontWeight: '600',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.05)', backdropFilter: 'blur(5px)', cursor: 'pointer', margin: '4px 0px',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                  }}
+                >
+                  {isActive ? '✓ ' : ''}{layer.label}
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
       <div style={{
@@ -424,26 +518,30 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
       }}>
         {/* 이 지역 검색 — 전체 너비 */}
         <button
-          onClick={fetchOverlay}
-          disabled={isOverlayLoading}
+          onClick={handleSearchThisArea}
+          disabled={isAnyLoading || (mapTab === 'hazard' && activeHazardLayers.size === 0)}
           style={{
             padding: '14px 28px',
-            backgroundColor: isOverlayLoading ? '#4e5968' : '#191f28', // 검정 배경
+            backgroundColor: isAnyLoading ? '#4e5968' : '#191f28', // 검정 배경
             color: '#ffffff', // 흰색 텍스트
             border: 'none',
             borderRadius: '25px',
             fontSize: '14px',
             fontWeight: '600',
-            cursor: isOverlayLoading ? 'not-allowed' : 'pointer',
+            cursor: isAnyLoading ? 'not-allowed' : 'pointer',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '6px',
-            opacity: isOverlayLoading ? 0.6 : 1,
+            opacity: isAnyLoading ? 0.6 : 1,
           }}
         >
-          {isOverlayLoading ? '🔍 불러오는 중...' : '🔍 이 지역 검색'}
+          {isAnyLoading
+            ? '🔍 불러오는 중...'
+            : mapTab === 'hazard' && activeHazardLayers.size === 0
+              ? '레이어를 선택해주세요'
+              : '🔍 이 지역 검색'}
         </button>
 
         {/* 뉴스 | 공유 — 2열 */}
