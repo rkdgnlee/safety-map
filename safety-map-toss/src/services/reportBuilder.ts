@@ -47,6 +47,10 @@ const SOURCE_LABEL: Record<string, string> = {
   landslide: '산사태 위험',
 };
 
+// 응급실 주소로 추정한 지역은 틀릴 수 있어 화면에 쓰지 않는다
+const regionLabelOf = (api: ApiReport) =>
+  api.region?.source === 'naver' ? [api.region.sigungu, api.region.dong].filter(Boolean).join(' ') : null;
+
 const rank: Record<Verdict, number> = { good: 0, caution: 1, bad: 2 };
 const worse = (a: Verdict, b: Verdict): Verdict => (rank[a] >= rank[b] ? a : b);
 
@@ -344,6 +348,7 @@ export function buildCategoryReport(category: CategoryId, api: ApiReport, now: D
     hospital: api.hospitals[0] ?? null,
     sources: SOURCES[category],
     isMock: false,
+    regionLabel: regionLabelOf(api),
   };
 }
 
@@ -461,5 +466,6 @@ function buildMovingReport(api: ApiReport): CategoryReport {
     hospital: null, // 카드 목록에 이미 포함
     sources: ['생활안전정보 범죄주의구간·산사태 위험·하천 홍수위험', '국립중앙의료원'],
     isMock: false,
+    regionLabel: regionLabelOf(api),
   };
 }

@@ -1,19 +1,21 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNaverMap } from '../hooks/useNaverMap';
 import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
 import { NATURAL_HAZARD_LAYER_LIST } from '../constants/naturalHazardLayers';
 import { getTossShareLink, share } from '@apps-in-toss/web-framework';
 import { useNaturalHazardOverlay } from '../hooks/useNaturalHazardOverlay';
+import { MAP_FREE_TYPE_CHANGES } from '../constants/ads';
+import { showInterstitial } from '../services/interstitialAd';
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
 
-type MapTab = 'crime' | 'hazard';
+export type MapTab = 'crime' | 'hazard';
 
 interface MapScreenProps {
   location: { lat: number; lng: number } | null;
   addressLabel: string | null; // ← 추가
-  pendingCrimeType: string | null;
-  onCrimeTypeAdTrigger: (crimeType: string) => void;
+  initialTab?: MapTab; // 결과 화면 미니맵에서 보던 레이어 쪽 탭으로 열기
+  initialHazard?: string; // 자연재해 탭에서 처음 켤 레이어 (riverFlood, landslide)
   onBack: () => void;
 }
 const crimeKeyword: Record<string, string> = {
@@ -34,8 +36,6 @@ const CRIME_TYPES = [
   { id: 'robbery',  label: '강도' },
   { id: 'theft',    label: '절도' },         
 ];
-const AD_TRIGGER_COUNT = 2;
-
 const PROXY_BASE_URL = import.meta.env.VITE_PROXY_BASE_URL;
 
 interface NewsItem {
@@ -45,9 +45,9 @@ interface NewsItem {
   originallink: string;
   pubDate: string;
 }
-export default function MapScreen({ location, addressLabel, pendingCrimeType, onCrimeTypeAdTrigger, onBack }: MapScreenProps) {
-  const [selectedType, setSelectedType] = useState(pendingCrimeType ?? 'all');
-  const [mapTab, setMapTab] = useState<MapTab>('crime');
+export default function MapScreen({ location, addressLabel, initialTab = 'crime', initialHazard, onBack }: MapScreenProps) {
+  const [selectedType, setSelectedType] = useState('all');
+  const [mapTab, setMapTab] = useState<MapTab>(initialTab);
   const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const crimeViewCountRef = useRef(0);
@@ -60,13 +60,14 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
 
     crimeViewCountRef.current += 1;
 
-    if (crimeViewCountRef.current > AD_TRIGGER_COUNT) {
+    // 맛보기로 몇 번은 바로 보여주고, 그다음 바꿀 때 전면 광고 후 이어서 보여준다
+    if (crimeViewCountRef.current > MAP_FREE_TYPE_CHANGES) {
       crimeViewCountRef.current = 0;
-      onCrimeTypeAdTrigger(typeId); 
+      showInterstitial(() => setSelectedType(typeId));
     } else {
       setSelectedType(typeId);
     }
-  }, [onCrimeTypeAdTrigger]);
+  }, []);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const { map, isLoaded, error } = useNaverMap(mapContainerRef, {
@@ -75,9 +76,10 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
   });
   
   // 💡 훅에서 데이터 로딩 상태(isLoading)를 받아옵니다.
+  // 지도를 많이 움직여 레이어를 여러 번 새로 불러오면 전면 광고 (화면은 그대로 유지)
   const handleOverlayAdTrigger = useCallback(() => {
-    onCrimeTypeAdTrigger(selectedType); // 현재 타입 보존한 채로 광고 화면으로
-  }, [onCrimeTypeAdTrigger, selectedType]);
+    showInterstitial();
+  }, []);
 
   const handleShare = async () => {
     try {
@@ -117,6 +119,14 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
     isMapLoaded: isLoaded,
     onAdTrigger: handleOverlayAdTrigger,
   });
+
+  // 결과 화면에서 보던 자연재해 레이어를 지도 준비 후 한 번 켜 둔다
+  const appliedInitialHazardRef = useRef(false);
+  useEffect(() => {
+    if (!isLoaded || !initialHazard || appliedInitialHazardRef.current) return;
+    appliedInitialHazardRef.current = true;
+    selectHazard(initialHazard);
+  }, [isLoaded, initialHazard, selectHazard]);
 
   // 탭에 따라 "이 지역 검색" 버튼이 다른 레이어를 갱신하도록 분기
   const handleSearchThisArea = useCallback(() => {
@@ -596,12 +606,9 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
           <div style={{
             position: 'relative', width: '100%', maxWidth: '320px', backgroundColor: '#ffffff', borderRadius: '26px', padding: '28px 24px 24px 24px', boxShadow: '0 20px 40px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxSizing: 'border-box'
           }}>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: '700', color: '#191f28', lineHeight: '1.4' }}>
-              홈 화면으로 돌아가시겠습니까?
+            <h3 style={{ margin: '0 0 24px 0', fontSize: '18px', fontWeight: '700', color: '#191f28', lineHeight: '1.4' }}>
+              이전 화면으로 돌아갈까요?
             </h3>
-            <p style={{ margin: '0 0 24px 0', fontSize: '14px', fontWeight: '600', color: '#f04452', lineHeight: '1.4' }}>
-              (광고를 다시 시청해야합니다)
-            </p>
 
             <div style={{ display: 'flex', width: '100%', gap: '12px' }}>
               <button onClick={() => setIsHomeModalOpen(false)} style={{ flex: 1, padding: '14px', backgroundColor: '#f2f4f6', color: '#4e5968', border: 'none', borderRadius: '14px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>

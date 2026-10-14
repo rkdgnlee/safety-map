@@ -1,8 +1,9 @@
-// 장소 검색 전체화면 시트. 입력이 없으면 최근 검색 기록을, 입력하면 주소 검색 결과를 보여준다.
+// 장소 검색 전체화면 시트. 입력이 없으면 최근 검색 기록을, 입력하면 장소(북한산 등) → 주소 순으로 결과를 보여준다.
 import { useEffect, useRef, useState } from 'react';
 import type { Place } from '../constants/categories';
 import { COLORS, FONT_FAMILY } from '../constants/theme';
 import { useAddressSearch } from '../hooks/useAddressSearch';
+import { usePlaceSearch, type PlaceResult } from '../hooks/usePlaceSearch';
 import { preferenceActions, usePreferences } from '../hooks/usePreferences';
 import type { JusoItem } from '../services/addressService';
 import { geocodeAddress } from '../services/geocodingService';
@@ -21,6 +22,7 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
   const [isResolving, setIsResolving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { results, loading, error } = useAddressSearch(query);
+  const { results: places, loading: placesLoading } = usePlaceSearch(query);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -53,6 +55,10 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
     } finally {
       setIsResolving(false);
     }
+  };
+
+  const handleSelectPlace = (item: PlaceResult) => {
+    select({ label: item.name, lat: item.lat, lng: item.lng, sido: item.sido, sigungu: item.sigungu }, true);
   };
 
   const handleCurrentLocation = async () => {
@@ -98,7 +104,7 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
           setQuery(e.target.value);
           setMessage(null);
         }}
-        placeholder="동네 이름이나 주소를 입력해 주세요"
+        placeholder="산, 캠핑장, 낚시터, 동네 이름이나 주소"
         style={{
           marginTop: '20px',
           height: '52px',
@@ -164,10 +170,30 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
           </>
         ) : (
           <>
-            {loading && <p style={{ fontSize: '14px', color: COLORS.textHint }}>검색하고 있어요</p>}
-            {!loading && error && <p style={{ fontSize: '14px', color: '#d22030' }}>{error}</p>}
-            {!loading && !error && results.length === 0 && (
-              <p style={{ fontSize: '14px', color: COLORS.textHint }}>검색 결과가 없어요. 동 이름이나 도로명으로 검색해 보세요.</p>
+            {places.length > 0 && <p style={sectionLabelStyle}>장소</p>}
+            {places.map((item) => (
+              <button
+                key={`${item.name}-${item.lat}-${item.lng}`}
+                onClick={() => handleSelectPlace(item)}
+                disabled={isResolving}
+                style={{ ...rowButtonStyle, display: 'block', width: '100%', padding: '14px 0', borderBottom: `1px solid ${COLORS.divider}` }}
+              >
+                <span style={{ display: 'block', fontSize: '15px', fontWeight: 500 }}>📍 {item.name}</span>
+                <span style={{ display: 'block', marginTop: '2px', fontSize: '13px', color: COLORS.textHint }}>
+                  {item.category && `${item.category.split('>').pop()} · `}
+                  {item.address}
+                </span>
+              </button>
+            ))}
+            {results.length > 0 && <p style={{ ...sectionLabelStyle, marginTop: places.length > 0 ? '20px' : 0 }}>주소</p>}
+            {(loading || placesLoading) && results.length === 0 && places.length === 0 && (
+              <p style={{ fontSize: '14px', color: COLORS.textHint }}>검색하고 있어요</p>
+            )}
+            {!loading && !placesLoading && error && places.length === 0 && (
+              <p style={{ fontSize: '14px', color: '#d22030' }}>{error}</p>
+            )}
+            {!loading && !placesLoading && !error && results.length === 0 && places.length === 0 && (
+              <p style={{ fontSize: '14px', color: COLORS.textHint }}>검색 결과가 없어요. 장소 이름이나 동 이름으로 검색해 보세요.</p>
             )}
             {results.map((item, idx) => (
               <button

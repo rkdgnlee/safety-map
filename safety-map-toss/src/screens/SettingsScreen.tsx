@@ -1,11 +1,15 @@
 import { useState, type ReactNode } from 'react';
 import PlaceSearchSheet from '../components/PlaceSearchSheet';
+import { CHANGELOG } from '../constants/changelog';
 import { getCategory } from '../constants/categories';
 import { COLORS, FONT_FAMILY, SCREEN_STYLE } from '../constants/theme';
 import { preferenceActions, usePreferences } from '../hooks/usePreferences';
 
+type InfoSection = 'sources' | 'guide' | 'changelog';
+
 interface SettingsScreenProps {
   onBack: () => void;
+  initialInfo?: InfoSection; // 홈 '새로워졌어요'에서 들어오면 업데이트 내역을 펼친 채로
 }
 
 type ConfirmTarget = 'history' | 'recent' | null;
@@ -27,11 +31,11 @@ const VERDICT_GUIDE = [
   ['비추천', '기상특보가 발효됐거나 여러 항목이 위험 기준을 넘었어요'],
 ];
 
-export default function SettingsScreen({ onBack }: SettingsScreenProps) {
+export default function SettingsScreen({ onBack, initialInfo }: SettingsScreenProps) {
   const prefs = usePreferences();
   const [confirm, setConfirm] = useState<ConfirmTarget>(null);
   const [isPickingDefault, setIsPickingDefault] = useState(false);
-  const [openInfo, setOpenInfo] = useState<'sources' | 'guide' | null>(null);
+  const [openInfo, setOpenInfo] = useState<InfoSection | null>(initialInfo ?? null);
 
   const handleConfirm = () => {
     if (confirm === 'history') preferenceActions.clearSearchHistory();
@@ -134,6 +138,22 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
       </Section>
 
       <Section title="정보">
+        <Row title="업데이트 내역" detail={`최근 ${CHANGELOG[0].date}`} onClick={() => setOpenInfo(openInfo === 'changelog' ? null : 'changelog')} />
+        {openInfo === 'changelog' && (
+          <div style={infoBoxStyle}>
+            {CHANGELOG.map((entry, index) => (
+              <div key={entry.id} style={{ marginTop: index === 0 ? 0 : '20px' }}>
+                <p style={{ margin: 0, fontSize: '12px', color: COLORS.textHint }}>{entry.date}</p>
+                <p style={{ margin: '2px 0 6px', fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{entry.title}</p>
+                {entry.items.map((item) => (
+                  <p key={item} style={{ margin: '0 0 4px' }}>
+                    · {item}
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
         <Row title="판정 기준 안내" onClick={() => setOpenInfo(openInfo === 'guide' ? null : 'guide')} />
         {openInfo === 'guide' && (
           <div style={infoBoxStyle}>

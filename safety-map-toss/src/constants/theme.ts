@@ -1,4 +1,4 @@
-// 앱 전역 색상. 메인 컬러는 granite.config.ts 의 brand.primaryColor 와 맞춘다.
+// 앱 전역 색상. 메인 컬러는 apps-in-toss.config.ts 의 brand.primaryColor 와 맞춘다.
 export const COLORS = {
   primary: '#3D4FA3',
   primaryStrong: '#2A3778',

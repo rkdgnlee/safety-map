@@ -1,6 +1,8 @@
+import { LATEST_CHANGELOG } from '../constants/changelog';
 import { getCategory, UPCOMING_CATEGORIES, type CategoryId, type Place } from '../constants/categories';
 import { COLORS, SCREEN_STYLE } from '../constants/theme';
-import { usePreferences, type RecentView } from '../hooks/usePreferences';
+import { preferenceActions, usePreferences, type RecentView } from '../hooks/usePreferences';
+import { BANNER_AD_GROUP_ID } from '../constants/ads';
 import BannerAdComponent from './BannerAdComponent';
 
 interface HomeScreenProps {
@@ -10,6 +12,7 @@ interface HomeScreenProps {
   onSelectCategory: (id: CategoryId) => void;
   onOpenRecent: (view: RecentView) => void;
   onOpenSettings: () => void;
+  onOpenChangelog: () => void;
 }
 
 export default function HomeScreen({
@@ -19,8 +22,10 @@ export default function HomeScreen({
   onSelectCategory,
   onOpenRecent,
   onOpenSettings,
+  onOpenChangelog,
 }: HomeScreenProps) {
-  const { categoryOrder, recentViews } = usePreferences();
+  const { categoryOrder, recentViews, seenChangelogId } = usePreferences();
+  const showWhatsNew = seenChangelogId !== LATEST_CHANGELOG.id;
 
   return (
     <main style={SCREEN_STYLE}>
@@ -75,10 +80,44 @@ export default function HomeScreen({
         </h1>
       </section>
 
+      {showWhatsNew && (
+        <div
+          style={{
+            marginTop: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 4px 4px 16px',
+            borderRadius: '14px',
+            backgroundColor: COLORS.primarySoft,
+          }}
+        >
+          <button
+            onClick={() => {
+              preferenceActions.markChangelogSeen(LATEST_CHANGELOG.id);
+              onOpenChangelog();
+            }}
+            style={{ flex: 1, minHeight: '48px', padding: 0, border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' }}
+          >
+            <span style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: COLORS.primary }}>✨ 새로워졌어요</span>
+            <span style={{ display: 'block', marginTop: '2px', fontSize: '14px', fontWeight: 600, color: COLORS.text }}>
+              {LATEST_CHANGELOG.title} ›
+            </span>
+          </button>
+          <button
+            onClick={() => preferenceActions.markChangelogSeen(LATEST_CHANGELOG.id)}
+            aria-label="업데이트 안내 닫기"
+            style={{ width: '44px', height: '44px', border: 'none', background: 'none', color: COLORS.textHint, fontSize: '14px', cursor: 'pointer' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <button
         onClick={onOpenSearch}
         style={{
-          marginTop: '28px',
+          marginTop: showWhatsNew ? '16px' : '28px',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
@@ -95,7 +134,7 @@ export default function HomeScreen({
         }}
       >
         <span aria-hidden>🔍</span>
-        <span>어디 가세요? 동네 이름이나 주소</span>
+        <span>어디 가세요? 산, 캠핑장, 낚시터, 동네</span>
       </button>
 
       <section style={{ marginTop: '36px' }}>
@@ -165,7 +204,7 @@ export default function HomeScreen({
       )}
 
       <div style={{ marginTop: '36px' }}>
-        <BannerAdComponent adGroupId={'ait.v2.live.8d1c445b1d6e44a3'} />
+        <BannerAdComponent adGroupId={BANNER_AD_GROUP_ID} />
       </div>
     </main>
   );

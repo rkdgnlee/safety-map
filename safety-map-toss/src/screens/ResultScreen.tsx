@@ -4,6 +4,8 @@ import { COLORS, SCREEN_STYLE, VERDICT_TONE, type Verdict } from '../constants/t
 import { buildCategoryReport } from '../services/reportBuilder';
 import { fetchReport } from '../services/reportService';
 import type { ApiHospital, CategoryDetail, CategoryReport, TimelineMarker, TimelineSlot } from '../types/report';
+import ResultMiniMap, { type MiniMapLayerId } from '../components/ResultMiniMap';
+import { BANNER_AD_GROUP_ID } from '../constants/ads';
 import BannerAdComponent from './BannerAdComponent';
 
 interface ResultScreenProps {
@@ -11,7 +13,7 @@ interface ResultScreenProps {
   place: Place;
   onBack: () => void;
   onChangeCategory: (id: CategoryId) => void;
-  onOpenMap: () => void;
+  onOpenMap: (layer: MiniMapLayerId) => void;
 }
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'done'; report: CategoryReport; at: Date };
@@ -100,7 +102,8 @@ export default function ResultScreen({ categoryId, place, onBack, onChangeCatego
           {categoryId === 'moving' ? `${place.label} 안전 리포트` : place.label}
         </h1>
         <p style={{ margin: '8px 0 0', fontSize: '12px', color: COLORS.textHint }}>
-          {state.status === 'done' ? `${formatClock(state.at)} 기준` : '불러오는 중'} · {category.emoji} {category.name}
+          {state.status === 'done' ? `${formatClock(state.at)} 기준` : '불러오는 중'}
+          {state.status === 'done' && state.report.regionLabel && ` · ${state.report.regionLabel}`} · {category.emoji} {category.name}
           {state.status === 'done' && state.report.isMock && (
             <span style={{ marginLeft: '6px', color: COLORS.primary }}>· 예시 데이터</span>
           )}
@@ -123,11 +126,16 @@ export default function ResultScreen({ categoryId, place, onBack, onChangeCatego
       )}
 
       {state.status === 'done' && (
-        <ReportBody report={state.report} now={state.at} onOpenMap={onOpenMap} />
+        <ReportBody
+          report={state.report}
+          now={state.at}
+          center={place}
+          onOpenMap={onOpenMap}
+        />
       )}
 
       <div style={{ marginTop: '28px' }}>
-        <BannerAdComponent adGroupId={'ait.v2.live.8d1c445b1d6e44a3'} />
+        <BannerAdComponent adGroupId={BANNER_AD_GROUP_ID} />
       </div>
       <p style={{ margin: '20px 0 0', textAlign: 'center', fontSize: '12px', color: '#a0a8b2' }}>
         참고용 정보이며 현장 상황과 다를 수 있어요
@@ -136,7 +144,12 @@ export default function ResultScreen({ categoryId, place, onBack, onChangeCatego
   );
 }
 
-function ReportBody({ report, now, onOpenMap }: { report: CategoryReport; now: Date; onOpenMap: () => void }) {
+interface MapProps {
+  center: { lat: number; lng: number };
+  onOpenMap: (layer: MiniMapLayerId) => void;
+}
+
+function ReportBody({ report, now, center, onOpenMap }: { report: CategoryReport; now: Date } & MapProps) {
   return (
     <>
       <VerdictCard report={report} />
@@ -154,7 +167,7 @@ function ReportBody({ report, now, onOpenMap }: { report: CategoryReport; now: D
         </section>
       )}
 
-      <DetailSection detail={report.detail} now={now} onOpenMap={onOpenMap} />
+      <DetailSection detail={report.detail} now={now} center={center} onOpenMap={onOpenMap} />
 
       {(report.reasons.length > 0 || report.passed.length > 0) && <ReasonList report={report} />}
 
@@ -335,7 +348,7 @@ function HospitalCard({ hospital }: { hospital: ApiHospital }) {
   );
 }
 
-function DetailSection({ detail, now, onOpenMap }: { detail: CategoryDetail; now: Date; onOpenMap: () => void }) {
+function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDetail; now: Date } & MapProps) {
   switch (detail.kind) {
     case 'hiking': {
       if (!detail.sunset || !detail.sunrise) return null;
@@ -462,30 +475,19 @@ function DetailSection({ detail, now, onOpenMap }: { detail: CategoryDetail; now
             </div>
           )}
           <p style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.6, color: COLORS.textHint }}>
-            10단계 중 단계가 높을수록 주의가 필요한 길이에요 · 지도 색으로 추정한 값이에요. 공공 CCTV 위치는 지도에서 볼 수 있어요
+            10단계 중 단계가 높을수록 주의가 필요한 길이에요 · 지도 색으로 추정한 값이에요. 공공 CCTV 위치는 전체 지도에서 볼 수 있어요
           </p>
-          <button
-            onClick={onOpenMap}
-            style={{
-              marginTop: '16px',
-              width: '100%',
-              height: '48px',
-              border: 'none',
-              borderRadius: '12px',
-              backgroundColor: COLORS.primary,
-              color: '#ffffff',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            지도로 보기
-          </button>
+          <div style={{ marginTop: '16px' }}>
+            <ResultMiniMap center={center} layers={['crime']} onOpenFullMap={onOpenMap} />
+          </div>
         </section>
       );
     case 'moving':
       return (
         <section style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ ...panelStyle, padding: '16px' }}>
+            <ResultMiniMap center={center} layers={['crime', 'flood', 'landslide']} onOpenFullMap={onOpenMap} />
+          </div>
           {detail.items.map((item) => {
             const tone = VERDICT_TONE[item.verdict];
             return (

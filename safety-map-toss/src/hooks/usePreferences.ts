@@ -18,6 +18,7 @@ export interface Preferences {
   searchHistory: Place[];
   recentViews: RecentView[];
   categoryOrder: CategoryId[];
+  seenChangelogId: string | null; // 홈 '새로워졌어요' 카드를 닫은 버전
 }
 
 const DEFAULT_PREFERENCES: Preferences = {
@@ -26,6 +27,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   searchHistory: [],
   recentViews: [],
   categoryOrder: DEFAULT_CATEGORY_ORDER,
+  seenChangelogId: null,
 };
 
 function load(): Preferences {
@@ -87,6 +89,9 @@ export const preferenceActions = {
   },
   clearRecentViews() {
     setState({ ...state, recentViews: [] });
+  },
+  markChangelogSeen(id: string) {
+    setState({ ...state, seenChangelogId: id });
   },
   moveCategory(id: CategoryId, direction: -1 | 1) {
     const order = [...state.categoryOrder];

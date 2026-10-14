@@ -14,6 +14,8 @@ const SCRIPT_ID = 'naver-maps-sdk';
 interface UseNaverMapOptions {
   center: { lat: number; lng: number };
   zoom?: number;
+  // 네이버 지도 MapOptions 추가값 (예: 결과 화면 미니맵은 draggable: false)
+  mapOptions?: Record<string, unknown>;
 }
 
 export function useNaverMap(
@@ -41,7 +43,13 @@ export function useNaverMap(
       return;
     }
 
-    if (document.getElementById(SCRIPT_ID)) return;
+    // 다른 지도가 이미 스크립트를 넣고 로딩 중이면 그 완료를 기다린다
+    const existing = document.getElementById(SCRIPT_ID);
+    if (existing) {
+      const handleLoad = () => setIsSdkLoaded(true);
+      existing.addEventListener('load', handleLoad);
+      return () => existing.removeEventListener('load', handleLoad);
+    }
 
     const script = document.createElement('script');
     script.id = SCRIPT_ID;
@@ -64,6 +72,7 @@ export function useNaverMap(
       const mapInstance = new window.naver.maps.Map(containerRef.current, {
         center: new window.naver.maps.LatLng(options.center.lat, options.center.lng),
         zoom: options.zoom ?? 16,
+        ...options.mapOptions,
       });
 
       mapInstanceRef.current = mapInstance;
@@ -80,7 +89,7 @@ export function useNaverMap(
     } catch (e) {
       setError('지도 초기화 중 오류가 발생했습니다.');
     }
-  }, [isSdkLoaded, containerRef, options.center, options.zoom]);
+  }, [isSdkLoaded, containerRef, options.center, options.zoom, options.mapOptions]);
 
   return {
     map: mapInstanceRef.current,

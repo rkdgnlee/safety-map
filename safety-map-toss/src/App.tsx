@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import PlaceSearchSheet from './components/PlaceSearchSheet';
+import type { MiniMapLayerId } from './components/ResultMiniMap';
+import { RESULT_VIEWS_PER_AD } from './constants/ads';
 import type { CategoryId, Place } from './constants/categories';
 import { preferenceActions, usePreferences } from './hooks/usePreferences';
-import AdComponent from './screens/AdComponent';
 import HomeScreen from './screens/HomeScreen';
-import MapScreen from './screens/MapScreen';
+import MapScreen, { type MapTab } from './screens/MapScreen';
 import ResultScreen from './screens/ResultScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import { preloadInterstitial, showInterstitial } from './services/interstitialAd';
 import { getCurrentPlace } from './services/locationService';
 
-export type ScreenType = 'HOME' | 'RESULT' | 'SETTINGS' | 'LOADING_AD' | 'AD' | 'MAP';
+export type ScreenType = 'HOME' | 'RESULT' | 'SETTINGS' | 'MAP';
 
 // 딥링크(?lat=&lng=&address=)로 들어온 위치
 function readDeepLinkPlace(): Place | null {
@@ -23,6 +25,7 @@ function readDeepLinkPlace(): Place | null {
 export default function App() {
   const { useCurrentLocation, defaultPlace } = usePreferences();
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('HOME');
+  const [settingsInfo, setSettingsInfo] = useState<'changelog' | undefined>(undefined);
   const [place, setPlace] = useState<Place | null>(readDeepLinkPlace);
   const [placeStatus, setPlaceStatus] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<CategoryId>('hiking');
@@ -31,10 +34,16 @@ export default function App() {
     open: false,
     nextCategory: null,
   });
-  const [adContext, setAdContext] = useState<'home' | 'map'>('home');
-  const [pendingCrimeType, setPendingCrimeType] = useState<string | null>(null);
+  // 앱을 켠 동안 결과를 본 횟수 — 많이 보는 사용자에게만 전면 광고
+  const resultViewCount = useRef(0);
+  const [mapTab, setMapTab] = useState<MapTab>('crime');
+  const [mapHazard, setMapHazard] = useState<string | undefined>(undefined);
   // 사용자가 직접 고른 장소는 위치 설정이 바뀌어도 덮어쓰지 않는다
   const isManualPlace = useRef(place !== null);
+
+  useEffect(() => {
+    preloadInterstitial();
+  }, []);
 
   useEffect(() => {
     if (isManualPlace.current) return;
@@ -64,9 +73,14 @@ export default function App() {
   }, [useCurrentLocation, defaultPlace]);
 
   const openResult = (nextCategory: CategoryId, nextPlace: Place) => {
-    setCategoryId(nextCategory);
-    preferenceActions.addRecentView({ place: nextPlace, categoryId: nextCategory });
-    setCurrentScreen('RESULT');
+    const show = () => {
+      setCategoryId(nextCategory);
+      preferenceActions.addRecentView({ place: nextPlace, categoryId: nextCategory });
+      setCurrentScreen('RESULT');
+    };
+    resultViewCount.current += 1;
+    if (resultViewCount.current % RESULT_VIEWS_PER_AD === 0) showInterstitial(show);
+    else show();
   };
 
   const handleSelectCategory = (nextCategory: CategoryId) => {
@@ -86,17 +100,11 @@ export default function App() {
     if (nextCategory) openResult(nextCategory, nextPlace);
   };
 
-  // 밤길 → 범죄주의구간 지도 (기존 광고 → 지도 흐름)
-  const handleOpenMap = () => {
-    setAdContext('home');
-    setCurrentScreen('LOADING_AD');
-    setTimeout(() => setCurrentScreen('AD'), 1500);
-  };
-
-  const handleCrimeTypeAdTrigger = (crimeType: string) => {
-    setPendingCrimeType(crimeType);
-    setAdContext('map');
-    setCurrentScreen('AD');
+  // 밤길 → 범죄주의구간 지도. 맛보기로 바로 열고, 지도 안에서 많이 둘러보면 전면 광고
+  const handleOpenMap = (layer: MiniMapLayerId) => {
+    setMapTab(layer === 'crime' ? 'crime' : 'hazard');
+    setMapHazard(layer === 'flood' ? 'riverFlood' : layer === 'landslide' ? 'landslide' : undefined);
+    setCurrentScreen('MAP');
   };
 
   return (
@@ -112,7 +120,14 @@ export default function App() {
             setPlace(view.place);
             openResult(view.categoryId, view.place);
           }}
-          onOpenSettings={() => setCurrentScreen('SETTINGS')}
+          onOpenSettings={() => {
+            setSettingsInfo(undefined);
+            setCurrentScreen('SETTINGS');
+          }}
+          onOpenChangelog={() => {
+            setSettingsInfo('changelog');
+            setCurrentScreen('SETTINGS');
+          }}
         />
       )}
 
@@ -126,40 +141,15 @@ export default function App() {
         />
       )}
 
-      {currentScreen === 'SETTINGS' && <SettingsScreen onBack={() => setCurrentScreen('HOME')} />}
-
-      {currentScreen === 'LOADING_AD' && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          backgroundColor: '#ffffff',
-          fontFamily: '"Pretendard", sans-serif'
-        }}>
-          <div style={{ fontSize: '40px', marginBottom: '16px' }}>🛡️</div>
-          <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#191f28', margin: '0 0 8px 0' }}>
-            안전 분석 결과를 가져오고 있어요
-          </h3>
-          <p style={{ fontSize: '14px', color: '#8b95a1', margin: 0 }}>
-            잠시 후 광고 시청 후 지도가 나타납니다.
-          </p>
-        </div>
-      )}
-
-      {currentScreen === 'AD' && <AdComponent onClose={() => setCurrentScreen('MAP')} context={adContext} />}
+      {currentScreen === 'SETTINGS' && <SettingsScreen initialInfo={settingsInfo} onBack={() => setCurrentScreen('HOME')} />}
 
       {currentScreen === 'MAP' && (
         <MapScreen
           location={place}
           addressLabel={place?.label ?? null}
-          pendingCrimeType={pendingCrimeType}
-          onCrimeTypeAdTrigger={handleCrimeTypeAdTrigger}
-          onBack={() => {
-            setPendingCrimeType(null);
-            setCurrentScreen('RESULT');
-          }}
+          initialTab={mapTab}
+          initialHazard={mapHazard}
+          onBack={() => setCurrentScreen('RESULT')}
         />
       )}
 

@@ -167,4 +167,5 @@ export interface CategoryReport {
   hospital: ApiHospital | null;
   sources: string[];
   isMock: boolean;
+  regionLabel: string | null; // '마포구 망원1동' (네이버 역지오코딩일 때만)
 }
