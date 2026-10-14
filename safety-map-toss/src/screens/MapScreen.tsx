@@ -48,7 +48,6 @@ interface NewsItem {
 export default function MapScreen({ location, addressLabel, initialTab = 'crime', initialHazard, onBack }: MapScreenProps) {
   const [selectedType, setSelectedType] = useState('all');
   const [mapTab, setMapTab] = useState<MapTab>(initialTab);
-  const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const crimeViewCountRef = useRef(0);
 
@@ -308,12 +307,13 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
 
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
           <button
-            onClick={() => setIsHomeModalOpen(true)}
+            onClick={onBack}
+            aria-label="뒤로"
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '50%', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', cursor: 'pointer', fontSize: '16px'
             }}
           >
-            🏠
+            ‹
           </button>
 
           <div style={{
@@ -598,35 +598,6 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
       </div>
       
 
-      {/* 4. 홈화면 이동 여부를 묻는 모달 */}
-      {isHomeModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px'
-        }}>
-          <div style={{
-            position: 'relative', width: '100%', maxWidth: '320px', backgroundColor: '#ffffff', borderRadius: '26px', padding: '28px 24px 24px 24px', boxShadow: '0 20px 40px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxSizing: 'border-box'
-          }}>
-            <h3 style={{ margin: '0 0 24px 0', fontSize: '18px', fontWeight: '700', color: '#191f28', lineHeight: '1.4' }}>
-              이전 화면으로 돌아갈까요?
-            </h3>
-
-            <div style={{ display: 'flex', width: '100%', gap: '12px' }}>
-              <button onClick={() => setIsHomeModalOpen(false)} style={{ flex: 1, padding: '14px', backgroundColor: '#f2f4f6', color: '#4e5968', border: 'none', borderRadius: '14px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
-                취소
-              </button>
-              <button
-                onClick={() => {
-                  setIsHomeModalOpen(false);
-                  onBack();
-                }}
-                style={{ flex: 1, padding: '14px', backgroundColor: '#191f28', color: '#fff', border: 'none', borderRadius: '14px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 뉴스 바텀시트 */}
       {isNewsOpen && (

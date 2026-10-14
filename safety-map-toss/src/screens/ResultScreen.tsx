@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, getCategory, type CategoryId, type Place } from '../constants/categories';
 import { COLORS, SCREEN_STYLE, VERDICT_TONE, type Verdict } from '../constants/theme';
 import { buildCategoryReport } from '../services/reportBuilder';
 import { fetchReport } from '../services/reportService';
 import type { ApiHospital, CategoryDetail, CategoryReport, TimelineMarker, TimelineSlot } from '../types/report';
 import ResultMiniMap, { type MiniMapLayerId } from '../components/ResultMiniMap';
-import { BANNER_AD_GROUP_ID } from '../constants/ads';
+import { BANNER_AD_GROUP_ID, DWELL_AD_SCROLL_RATIO, DWELL_AD_SECONDS } from '../constants/ads';
 import BannerAdComponent from './BannerAdComponent';
 
 interface ResultScreenProps {
@@ -14,6 +14,8 @@ interface ResultScreenProps {
   onBack: () => void;
   onChangeCategory: (id: CategoryId) => void;
   onOpenMap: (layer: MiniMapLayerId) => void;
+  onSearchPlace: () => void; // 같은 카테고리로 다른 장소 보기
+  onEngaged: () => void; // 결과를 오래·깊이 읽었을 때 한 번 호출
 }
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'done'; report: CategoryReport; at: Date };
@@ -30,6 +32,43 @@ const FISHING_INDEX_VERDICT: Record<string, Verdict> = {
   나쁨: 'bad',
   매우나쁨: 'bad',
 };
+
+// 결과를 DWELL_AD_SECONDS 이상 보고, 화면의 DWELL_AD_SCROLL_RATIO 이상까지 내려 읽으면 onEngaged 를 한 번 부른다
+function useReadingEngagement(active: boolean, resetKey: string, onEngaged: () => void) {
+  const onEngagedRef = useRef(onEngaged);
+  onEngagedRef.current = onEngaged;
+
+  useEffect(() => {
+    if (!active) return;
+    let timeReached = false;
+    let scrollReached = false;
+    let fired = false;
+    const check = () => {
+      if (!fired && timeReached && scrollReached) {
+        fired = true;
+        onEngagedRef.current();
+      }
+    };
+    const handleScroll = () => {
+      const doc = document.documentElement;
+      const ratio = (window.scrollY + window.innerHeight) / Math.max(doc.scrollHeight, 1);
+      if (ratio >= DWELL_AD_SCROLL_RATIO) {
+        scrollReached = true;
+        check();
+      }
+    };
+    const timer = setTimeout(() => {
+      timeReached = true;
+      handleScroll(); // 화면이 짧아 스크롤할 필요가 없는 경우도 반영
+      check();
+    }, DWELL_AD_SECONDS * 1000);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [active, resetKey]);
+}
 
 function useCategoryReport(categoryId: CategoryId, place: Place, retryKey: number): LoadState {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
@@ -55,10 +94,24 @@ function useCategoryReport(categoryId: CategoryId, place: Place, retryKey: numbe
   return state;
 }
 
-export default function ResultScreen({ categoryId, place, onBack, onChangeCategory, onOpenMap }: ResultScreenProps) {
+export default function ResultScreen({
+  categoryId,
+  place,
+  onBack,
+  onChangeCategory,
+  onOpenMap,
+  onSearchPlace,
+  onEngaged,
+}: ResultScreenProps) {
   const category = getCategory(categoryId);
   const [retryKey, setRetryKey] = useState(0);
   const state = useCategoryReport(categoryId, place, retryKey);
+  useReadingEngagement(state.status === 'done', `${categoryId}:${place.lat},${place.lng}`, onEngaged);
+
+  // 카테고리·장소가 바뀌면 맨 위부터 보여준다
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [categoryId, place]);
 
   return (
     <main style={SCREEN_STYLE}>
@@ -67,9 +120,27 @@ export default function ResultScreen({ categoryId, place, onBack, onChangeCatego
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
       `}</style>
 
-      <button onClick={onBack} style={{ ...textButtonStyle, color: COLORS.textSub, fontSize: '15px' }}>
-        ‹ 홈으로
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={onBack} style={{ ...textButtonStyle, color: COLORS.textSub, fontSize: '15px' }}>
+          ‹ 홈으로
+        </button>
+        <button
+          onClick={onSearchPlace}
+          style={{
+            ...textButtonStyle,
+            gap: '4px',
+            padding: '0 12px',
+            minHeight: '36px',
+            borderRadius: '18px',
+            backgroundColor: COLORS.surfaceStrong,
+            color: COLORS.textSub,
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          🔍 다른 장소
+        </button>
+      </div>
 
       <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', margin: '12px -20px 0', padding: '0 20px' }}>
         {CATEGORIES.map((c) => {

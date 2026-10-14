@@ -1,8 +1,9 @@
+import { graniteEvent } from '@apps-in-toss/web-framework';
 import { useEffect, useRef, useState } from 'react';
 import PlaceSearchSheet from './components/PlaceSearchSheet';
 import type { MiniMapLayerId } from './components/ResultMiniMap';
 import { RESULT_VIEWS_PER_AD } from './constants/ads';
-import type { CategoryId, Place } from './constants/categories';
+import { getCategory, type CategoryId, type Place } from './constants/categories';
 import { preferenceActions, usePreferences } from './hooks/usePreferences';
 import HomeScreen from './screens/HomeScreen';
 import MapScreen, { type MapTab } from './screens/MapScreen';
@@ -36,6 +37,9 @@ export default function App() {
   });
   // 앱을 켠 동안 결과를 본 횟수 — 많이 보는 사용자에게만 전면 광고
   const resultViewCount = useRef(0);
+  // 결과 하나를 오래·깊이 읽은 사용자에게 그 화면을 떠날 때 한 번만 전면 광고
+  const dwellAdPending = useRef(false);
+  const dwellAdShown = useRef(false);
   const [mapTab, setMapTab] = useState<MapTab>('crime');
   const [mapHazard, setMapHazard] = useState<string | undefined>(undefined);
   // 사용자가 직접 고른 장소는 위치 설정이 바뀌어도 덮어쓰지 않는다
@@ -83,6 +87,18 @@ export default function App() {
     else show();
   };
 
+  // 결과 화면을 떠나는 모든 경로(뒤로, 카테고리 변경, 다른 장소)는 여기를 거친다
+  const leaveResult = (next: () => void) => {
+    if (dwellAdPending.current && !dwellAdShown.current) {
+      dwellAdPending.current = false;
+      dwellAdShown.current = true;
+      resultViewCount.current = 0; // 방금 광고를 봤으니 횟수 광고는 처음부터 다시 센다
+      showInterstitial(next);
+    } else {
+      next();
+    }
+  };
+
   const handleSelectCategory = (nextCategory: CategoryId) => {
     if (place) {
       openResult(nextCategory, place);
@@ -92,13 +108,42 @@ export default function App() {
   };
 
   const handleSelectPlace = (nextPlace: Place) => {
-    isManualPlace.current = true;
-    setPlace(nextPlace);
-    setPlaceStatus(null);
     const { nextCategory } = searchState;
     setSearchState({ open: false, nextCategory: null });
-    if (nextCategory) openResult(nextCategory, nextPlace);
+    const apply = () => {
+      isManualPlace.current = true;
+      setPlace(nextPlace);
+      setPlaceStatus(null);
+      if (nextCategory) openResult(nextCategory, nextPlace);
+    };
+    if (currentScreen === 'RESULT') leaveResult(apply);
+    else apply();
   };
+
+  // 토스 앱의 뒤로가기: 홈이 아닐 때는 앱을 닫지 않고 이전 화면으로
+  const handleNativeBack = () => {
+    if (searchState.open) setSearchState({ open: false, nextCategory: null });
+    else if (currentScreen === 'MAP') setCurrentScreen('RESULT');
+    else if (currentScreen === 'RESULT') leaveResult(() => setCurrentScreen('HOME'));
+    else setCurrentScreen('HOME');
+  };
+  const nativeBackRef = useRef(handleNativeBack);
+  nativeBackRef.current = handleNativeBack;
+  const needsBackHandling = currentScreen !== 'HOME' || searchState.open;
+
+  useEffect(() => {
+    // 홈에서는 등록하지 않아 기본 동작(미니앱 닫기)을 그대로 둔다
+    if (!needsBackHandling) return;
+    try {
+      return graniteEvent.addEventListener('backEvent', {
+        onEvent: () => nativeBackRef.current(),
+        onError: (error) => console.error('[back] 뒤로가기 처리 실패:', error),
+      });
+    } catch (error) {
+      // 브라우저 개발 환경 등 네이티브 이벤트가 없는 곳
+      console.warn('[back] backEvent 를 등록하지 못했어요:', error);
+    }
+  }, [needsBackHandling]);
 
   // 밤길 → 범죄주의구간 지도. 맛보기로 바로 열고, 지도 안에서 많이 둘러보면 전면 광고
   const handleOpenMap = (layer: MiniMapLayerId) => {
@@ -135,9 +180,13 @@ export default function App() {
         <ResultScreen
           categoryId={categoryId}
           place={place}
-          onBack={() => setCurrentScreen('HOME')}
-          onChangeCategory={(next) => openResult(next, place)}
+          onBack={() => leaveResult(() => setCurrentScreen('HOME'))}
+          onChangeCategory={(next) => leaveResult(() => openResult(next, place))}
           onOpenMap={handleOpenMap}
+          onSearchPlace={() => setSearchState({ open: true, nextCategory: categoryId })}
+          onEngaged={() => {
+            if (!dwellAdShown.current) dwellAdPending.current = true;
+          }}
         />
       )}
 
@@ -155,6 +204,11 @@ export default function App() {
 
       {searchState.open && (
         <PlaceSearchSheet
+          title={
+            searchState.nextCategory
+              ? `${getCategory(searchState.nextCategory).emoji} ${getCategory(searchState.nextCategory).name}, 어디로 가세요?`
+              : undefined
+          }
           onSelect={handleSelectPlace}
           onClose={() => setSearchState({ open: false, nextCategory: null })}
         />
