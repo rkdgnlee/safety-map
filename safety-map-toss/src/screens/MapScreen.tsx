@@ -3,7 +3,7 @@ import { useNaverMap } from '../hooks/useNaverMap';
 import { useSafemapOverlay } from '../hooks/useSafemapOverlay';
 import { NATURAL_HAZARD_LAYER_LIST } from '../constants/naturalHazardLayers';
 import { getTossShareLink, share } from '@apps-in-toss/web-framework';
-import { useNaturalHazardOverlays } from '../hooks/useNaturalHazardOverlays';
+import { useNaturalHazardOverlay } from '../hooks/useNaturalHazardOverlay';
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
 
@@ -106,13 +106,13 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
     crimeType: selectedType,
     onAdTrigger: handleOverlayAdTrigger,
   });
-
+// 지금까지의 이 맵은 전부다 기존 기능으로 놔두고, 혹시 내가 이제 사용자에게 필요한 서비스가 무엇일까 고민해봤는데 포켓몬고 처럼 내 주변 뭐 1km기준으로 어떤 위험이 있는지? 예보가 발효된게 있는지 전부 보여주는거 어때? 그래서 비상 대피/편의점 뭐 경찰서 관공서 등등 경로탐색까지 가능하게끔.
   const {
-    activeLayers: activeHazardLayers,
+    selectedHazard,
     isLoading: isHazardLoading,
-    toggleLayer: toggleHazardLayer,
-    refreshActiveLayers: refreshHazardLayers,
-  } = useNaturalHazardOverlays({
+    selectHazard,
+    refreshSelectedHazard,
+  } = useNaturalHazardOverlay({
     map,
     isMapLoaded: isLoaded,
     onAdTrigger: handleOverlayAdTrigger,
@@ -123,9 +123,9 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
     if (mapTab === 'crime') {
       fetchOverlay();
     } else {
-      refreshHazardLayers();
+      refreshSelectedHazard();
     }
-  }, [mapTab, fetchOverlay, refreshHazardLayers]);
+  }, [mapTab, fetchOverlay, refreshSelectedHazard]);
 
   const isAnyLoading = mapTab === 'crime' ? isOverlayLoading : isHazardLoading;
 
@@ -330,12 +330,15 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
                 </div>
               </>
             ) : (
-              NATURAL_HAZARD_LAYER_LIST.map((layer) => (
-                <div key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: activeHazardLayers.has(layer.id) ? '#333' : '#c1c7cd' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: layer.color, flexShrink: 0, opacity: activeHazardLayers.has(layer.id) ? 1 : 0.4 }} />
-                  {layer.label.replace(' 위험', '').replace(' 발생이력', '').replace('홍수위험', '')}
-                </div>
-              ))
+              NATURAL_HAZARD_LAYER_LIST.map((layer) => {
+                const isSelected = selectedHazard === layer.id;
+                return (
+                  <div key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: isSelected ? '#333' : '#c1c7cd' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: layer.color, flexShrink: 0, opacity: isSelected ? 1 : 0.4 }} />
+                    {layer.label}
+                  </div>
+                );
+              })
             )}
             <button
               onClick={() => setIsInfoOpen(true)}
@@ -482,21 +485,19 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
             ))
           ) : (
             NATURAL_HAZARD_LAYER_LIST.map((layer) => {
-              const isActive = activeHazardLayers.has(layer.id);
+              const isActive = selectedHazard === layer.id;
               return (
                 <button
                   key={layer.id}
-                  onClick={() => toggleHazardLayer(layer.id)}
+                  onClick={() => selectHazard(layer.id)}
                   style={{
-                    flexShrink: 0, padding: '10px 16px', borderRadius: '20px',
-                    border: isActive ? 'none' : '1px solid #e5e8eb',
+                    flexShrink: 0, padding: '10px 16px', borderRadius: '20px', border: 'none',
                     backgroundColor: isActive ? layer.color : 'rgba(255,255,255,0.9)',
                     color: isActive ? '#fff' : '#4e5968', fontSize: '13px', fontWeight: '600',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.05)', backdropFilter: 'blur(5px)', cursor: 'pointer', margin: '4px 0px',
-                    display: 'flex', alignItems: 'center', gap: '6px',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.05)', backdropFilter: 'blur(5px)', cursor: 'pointer', margin: '4px 0px'
                   }}
                 >
-                  {isActive ? '✓ ' : ''}{layer.label}
+                  {layer.label}
                 </button>
               );
             })
@@ -519,7 +520,7 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
         {/* 이 지역 검색 — 전체 너비 */}
         <button
           onClick={handleSearchThisArea}
-          disabled={isAnyLoading || (mapTab === 'hazard' && activeHazardLayers.size === 0)}
+          disabled={isAnyLoading || (mapTab === 'hazard' && !selectedHazard)}
           style={{
             padding: '14px 28px',
             backgroundColor: isAnyLoading ? '#4e5968' : '#191f28', // 검정 배경
@@ -539,7 +540,7 @@ export default function MapScreen({ location, addressLabel, pendingCrimeType, on
         >
           {isAnyLoading
             ? '🔍 불러오는 중...'
-            : mapTab === 'hazard' && activeHazardLayers.size === 0
+            : mapTab === 'hazard' && !selectedHazard
               ? '레이어를 선택해주세요'
               : '🔍 이 지역 검색'}
         </button>

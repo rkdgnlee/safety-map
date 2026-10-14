@@ -1,79 +1,132 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import PlaceSearchSheet from './components/PlaceSearchSheet';
+import type { CategoryId, Place } from './constants/categories';
+import { preferenceActions, usePreferences } from './hooks/usePreferences';
+import AdComponent from './screens/AdComponent';
 import HomeScreen from './screens/HomeScreen';
 import MapScreen from './screens/MapScreen';
-import AdComponent from './screens/AdComponent';
+import ResultScreen from './screens/ResultScreen';
+import SettingsScreen from './screens/SettingsScreen';
+import { getCurrentPlace } from './services/locationService';
 
-export type ScreenType = 'HOME' | 'LOADING_AD' | 'AD' | 'MAP';
+export type ScreenType = 'HOME' | 'RESULT' | 'SETTINGS' | 'LOADING_AD' | 'AD' | 'MAP';
+
+// 딥링크(?lat=&lng=&address=)로 들어온 위치
+function readDeepLinkPlace(): Place | null {
+  const params = new URLSearchParams(window.location.search);
+  const lat = params.get('lat');
+  const lng = params.get('lng');
+  if (!lat || !lng) return null;
+  return { label: params.get('address') ?? '공유된 위치', lat: parseFloat(lat), lng: parseFloat(lng) };
+}
 
 export default function App() {
-  // 딥링크 혹은 주소 받아오는 곳 
-  const params = new URLSearchParams(window.location.search);
-
-  const initialAddress = params.get('address');
-
-  const initialCoord = (() => {
-    const lat = params.get('lat');
-    const lng = params.get('lng');
-    if (lat && lng) return { lat: parseFloat(lat), lng: parseFloat(lng) };
-    return null;
-  })();
-
-
-  const [currentScreen, setCurrentScreen] = useState<ScreenType>(() => {
-    // 💡 딥링크로 들어온 경우 파라미터 확인
-    const params = new URLSearchParams(window.location.search);
-    const lat = params.get('lat');
-    const lng = params.get('lng');
-    if (lat && lng) return 'HOME'; // HOME으로 시작하되 input에 값 채움
-    return 'HOME';
+  const { useCurrentLocation, defaultPlace } = usePreferences();
+  const [currentScreen, setCurrentScreen] = useState<ScreenType>('HOME');
+  const [place, setPlace] = useState<Place | null>(readDeepLinkPlace);
+  const [placeStatus, setPlaceStatus] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<CategoryId>('hiking');
+  // 카테고리를 먼저 눌렀는데 장소가 없으면 검색 후 바로 결과로 이동
+  const [searchState, setSearchState] = useState<{ open: boolean; nextCategory: CategoryId | null }>({
+    open: false,
+    nextCategory: null,
   });
-  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [adContext, setAdContext] = useState<'home' | 'map'>('home'); // ← 추가
-  const [pendingCrimeType, setPendingCrimeType] = useState<string | null>(null); // ← 추가
-  const [addressLabel, setAddressLabel] = useState<string | null>(initialAddress);
-  
-  
+  const [adContext, setAdContext] = useState<'home' | 'map'>('home');
+  const [pendingCrimeType, setPendingCrimeType] = useState<string | null>(null);
+  // 사용자가 직접 고른 장소는 위치 설정이 바뀌어도 덮어쓰지 않는다
+  const isManualPlace = useRef(place !== null);
 
-  // 1. 홈 → 광고
-  const handleStartProcess = (locationData: { lat: number; lng: number }, addressText: string) => {
-    setSelectedLocation(locationData);
-    setAddressLabel(addressText); // 💡 받아온 한글 주소를 상태에 저장!
-    setAdContext('home');
-    setCurrentScreen('LOADING_AD');
+  useEffect(() => {
+    if (isManualPlace.current) return;
 
-    setTimeout(() => {
-      setCurrentScreen('AD');
-    }, 1500);
+    if (!useCurrentLocation) {
+      setPlace(defaultPlace);
+      setPlaceStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPlaceStatus('위치를 확인하고 있어요');
+    getCurrentPlace()
+      .then((current) => {
+        if (cancelled || isManualPlace.current) return;
+        setPlace(current);
+        setPlaceStatus(null);
+      })
+      .catch(() => {
+        if (cancelled || isManualPlace.current) return;
+        setPlace(defaultPlace);
+        setPlaceStatus(defaultPlace ? null : '장소를 선택해 주세요');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [useCurrentLocation, defaultPlace]);
+
+  const openResult = (nextCategory: CategoryId, nextPlace: Place) => {
+    setCategoryId(nextCategory);
+    preferenceActions.addRecentView({ place: nextPlace, categoryId: nextCategory });
+    setCurrentScreen('RESULT');
   };
 
-  // 2. MapScreen에서 범죄유형 변경 시 광고 트리거
+  const handleSelectCategory = (nextCategory: CategoryId) => {
+    if (place) {
+      openResult(nextCategory, place);
+    } else {
+      setSearchState({ open: true, nextCategory });
+    }
+  };
+
+  const handleSelectPlace = (nextPlace: Place) => {
+    isManualPlace.current = true;
+    setPlace(nextPlace);
+    setPlaceStatus(null);
+    const { nextCategory } = searchState;
+    setSearchState({ open: false, nextCategory: null });
+    if (nextCategory) openResult(nextCategory, nextPlace);
+  };
+
+  // 밤길 → 범죄주의구간 지도 (기존 광고 → 지도 흐름)
+  const handleOpenMap = () => {
+    setAdContext('home');
+    setCurrentScreen('LOADING_AD');
+    setTimeout(() => setCurrentScreen('AD'), 1500);
+  };
+
   const handleCrimeTypeAdTrigger = (crimeType: string) => {
     setPendingCrimeType(crimeType);
     setAdContext('map');
     setCurrentScreen('AD');
   };
 
-  // 3. 광고 닫힘
-  const handleAdClose = () => {
-    setCurrentScreen('MAP');
-  };
-
-  const handleGoBackHome = () => {
-    setSelectedLocation(null);
-    setAddressLabel(''); // 💡 홈으로 갈 때 주소 초기화
-    setPendingCrimeType(null);
-    setCurrentScreen('HOME');
-  };
-
   return (
-    <div style={{ width: '100%', height: '100vh', backgroundColor: '#fff', overflowX: 'hidden' }}>
+    <div style={{ width: '100%', minHeight: '100vh', backgroundColor: '#fff', overflowX: 'hidden' }}>
       {currentScreen === 'HOME' && (
         <HomeScreen
-          onSearchComplete={handleStartProcess}
-          initialAddress={initialAddress}   // ← 추가
-          initialCoord={initialCoord}       // ← 추가
+          place={place}
+          placeStatus={placeStatus}
+          onOpenSearch={() => setSearchState({ open: true, nextCategory: null })}
+          onSelectCategory={handleSelectCategory}
+          onOpenRecent={(view) => {
+            isManualPlace.current = true;
+            setPlace(view.place);
+            openResult(view.categoryId, view.place);
+          }}
+          onOpenSettings={() => setCurrentScreen('SETTINGS')}
         />
       )}
+
+      {currentScreen === 'RESULT' && place && (
+        <ResultScreen
+          categoryId={categoryId}
+          place={place}
+          onBack={() => setCurrentScreen('HOME')}
+          onChangeCategory={(next) => openResult(next, place)}
+          onOpenMap={handleOpenMap}
+        />
+      )}
+
+      {currentScreen === 'SETTINGS' && <SettingsScreen onBack={() => setCurrentScreen('HOME')} />}
 
       {currentScreen === 'LOADING_AD' && (
         <div style={{
@@ -95,26 +148,27 @@ export default function App() {
         </div>
       )}
 
-      {currentScreen === 'AD' && (
-        <AdComponent
-          onClose={handleAdClose}
-          context={adContext} // ← 수정
-        />
-      )}
+      {currentScreen === 'AD' && <AdComponent onClose={() => setCurrentScreen('MAP')} context={adContext} />}
 
       {currentScreen === 'MAP' && (
         <MapScreen
-          location={selectedLocation}
-          addressLabel={addressLabel}
-          pendingCrimeType={pendingCrimeType} // ← 추가
-          onCrimeTypeAdTrigger={handleCrimeTypeAdTrigger} // ← 추가
-          onBack={handleGoBackHome}
+          location={place}
+          addressLabel={place?.label ?? null}
+          pendingCrimeType={pendingCrimeType}
+          onCrimeTypeAdTrigger={handleCrimeTypeAdTrigger}
+          onBack={() => {
+            setPendingCrimeType(null);
+            setCurrentScreen('RESULT');
+          }}
+        />
+      )}
+
+      {searchState.open && (
+        <PlaceSearchSheet
+          onSelect={handleSelectPlace}
+          onClose={() => setSearchState({ open: false, nextCategory: null })}
         />
       )}
     </div>
   );
 }
-
-// 인천부평 37.4894 경도 126.7224
-// 위례: 37.4722 경도 127.1431 
-// 뉴스 결과 링크 붙이기 -> 범죄 로딩 체크하기 
