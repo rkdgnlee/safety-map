@@ -3,6 +3,7 @@
 import type { CategoryId } from '../constants/categories';
 import { VERDICT_TONE, type Verdict } from '../constants/theme';
 import type {
+  ApiCrimeSample,
   ApiReport,
   ApiWeatherSlot,
   CategoryDetail,
@@ -10,6 +11,7 @@ import type {
   Reason,
   TimelineMarker,
   TimelineSlot,
+  MetricCard,
 } from '../types/report';
 
 type LiveCategory = Exclude<CategoryId, 'moving'>;
@@ -26,6 +28,7 @@ const WAVE_BAD_M = 2.5;
 const NIGHT_LOW_CAUTION = 0; // 캠핑 밤 최저 0°C 이하
 const NIGHT_LOW_BAD = -10;
 const SUNSET_SOON_MIN = 120; // 등산: 일몰 2시간 전부터 주의
+const CRIME_LEVEL_CAUTION = 7; // 범죄주의구간 10단계 중 7단계 이상이면 주의
 
 const SOURCE_LABEL: Record<string, string> = {
   weather: '날씨',
@@ -39,6 +42,9 @@ const SOURCE_LABEL: Record<string, string> = {
   tide: '물때',
   fishing: '바다낚시지수',
   region: '지역 확인',
+  crime: '범죄주의구간',
+  flood: '하천 범람',
+  landslide: '산사태 위험',
 };
 
 const rank: Record<Verdict, number> = { good: 0, caution: 1, bad: 2 };
@@ -211,7 +217,7 @@ function buildDetail(category: LiveCategory, api: ApiReport): CategoryDetail {
     case 'fishing':
       return { kind: 'fishing', tide: api.tide, fishing: api.fishing };
     case 'night':
-      return { kind: 'night', sunset: api.sun?.sunset ?? null };
+      return { kind: 'night', sunset: api.sun?.sunset ?? null, crime: api.crime };
   }
 }
 
@@ -222,7 +228,9 @@ const SOURCES: Record<LiveCategory, string[]> = {
   night: ['기상청 초단기예보·기상특보', '한국천문연구원 출몰시각', '국립중앙의료원', '생활안전정보 범죄주의구간'],
 };
 
-export function buildCategoryReport(category: LiveCategory, api: ApiReport, now: Date): CategoryReport {
+export function buildCategoryReport(category: CategoryId, api: ApiReport, now: Date): CategoryReport {
+  if (category === 'moving') return buildMovingReport(api);
+
   const reasons: Reason[] = [];
   const passed: string[] = [];
 
@@ -297,6 +305,22 @@ export function buildCategoryReport(category: LiveCategory, api: ApiReport, now:
     }
   }
 
+  if (category === 'night' && api.crime) {
+    const { maxLevel, nearLevel } = api.crime;
+    if (maxLevel !== null && maxLevel >= CRIME_LEVEL_CAUTION) {
+      reasons.push({
+        icon: '🚨',
+        title: '범죄주의구간',
+        value: `반경 500m 최고 ${maxLevel}단계 · 바로 앞 ${nearLevel ?? '-'}단계`,
+        criterion: `10단계 중 ${CRIME_LEVEL_CAUTION}단계 이상이면 주의 · 지도 색으로 추정`,
+        source: '생활안전정보 범죄주의구간',
+        verdict: 'caution',
+      });
+    } else {
+      passed.push(maxLevel === null ? '반경 500m 범죄주의구간 표시 없음' : `반경 500m 범죄주의구간 최고 ${maxLevel}단계`);
+    }
+  }
+
   // 비추천 → 주의 순으로 정렬
   reasons.sort((a, b) => rank[b.verdict] - rank[a.verdict]);
   const verdict = reasons.reduce<Verdict>((v, r) => worse(v, r.verdict), 'good');
@@ -357,4 +381,85 @@ function buildHeadline(category: LiveCategory, api: ApiReport, reasons: Reason[]
       return `바람과 물결이 잔잔한 편이에요\n${nextHigh ? `다음 만조는 ${isTomorrow ? '내일 ' : ''}${nextHigh.time}이에요` : '물때를 확인해 보세요'}`;
     }
   }
+}
+
+// ── 이사·자취방: 시간에 따라 바뀌지 않는 동네 리포트 ─────────────
+const crimeBand = (level: number) => (level >= CRIME_LEVEL_CAUTION ? '높음' : level >= 4 ? '보통' : '낮음');
+
+function crimeCard(crime: ApiCrimeSample): MetricCard {
+  if (crime.maxLevel === null) {
+    return { title: '범죄주의구간', grade: '표시 없음', verdict: 'good', ratio: 0.05, desc: '반경 500m 안에 범죄주의구간이 없어요' };
+  }
+  const verdict: Verdict = crime.maxLevel >= CRIME_LEVEL_CAUTION ? 'caution' : 'good';
+  return {
+    title: '범죄주의구간',
+    grade: crimeBand(crime.maxLevel),
+    verdict,
+    ratio: crime.maxLevel / 10,
+    desc: `반경 500m 최고 ${crime.maxLevel}단계 · 바로 앞(100m) ${crime.nearLevel ?? '표시 없음'}${crime.nearLevel ? '단계' : ''} · 10단계 중, 지도 색으로 추정`,
+  };
+}
+
+function buildMovingReport(api: ApiReport): CategoryReport {
+  const items: MetricCard[] = [];
+
+  if (api.crime) items.push(crimeCard(api.crime));
+
+  if (api.flood) {
+    const { atPoint, nearbyRatio } = api.flood;
+    items.push({
+      title: '하천 범람',
+      grade: atPoint ? '침수 예상 구역' : nearbyRatio > 0 ? '근처에 있음' : '해당 없음',
+      verdict: atPoint || nearbyRatio > 0 ? 'caution' : 'good',
+      ratio: Math.max(nearbyRatio, atPoint ? 0.8 : 0.05),
+      desc: atPoint
+        ? '하천이 범람하는 극한 홍수를 가정하면 이 위치가 잠길 수 있어요 · 반지하·1층이면 확인해 보세요'
+        : nearbyRatio > 0
+          ? `반경 300m 중 ${Math.round(nearbyRatio * 100)}%가 범람 시 침수 예상 구역이에요`
+          : '반경 300m 안에 하천 범람 시 침수 예상 구역이 없어요',
+    });
+  }
+
+  if (api.landslide) {
+    const g = api.landslide.worstGrade;
+    items.push({
+      title: '산사태 위험',
+      grade: g === null ? '해당 없음' : g <= 2 ? `높음 (${g}등급)` : g === 3 ? '보통 (3등급)' : `낮음 (${g}등급)`,
+      verdict: g !== null && g <= 2 ? 'caution' : 'good',
+      ratio: g === null ? 0.05 : (6 - g) / 5,
+      desc:
+        g === null
+          ? '반경 300m 안에 산사태 위험 지역이 없어요'
+          : `반경 300m 안 가장 위험한 곳이 ${g}등급이에요 (1등급이 가장 위험)`,
+    });
+  }
+
+  const hospital = api.hospitals[0] ?? null;
+  if (hospital) {
+    items.push({
+      title: '응급실까지',
+      grade: hospital.distanceKm < 1 ? `${Math.round(hospital.distanceKm * 1000)}m` : `${hospital.distanceKm.toFixed(1)}km`,
+      verdict: hospital.distanceKm <= 5 ? 'good' : 'caution',
+      ratio: Math.max(0.05, Math.min(1, hospital.distanceKm / 10)),
+      desc: `${hospital.name} · 5km 넘으면 주의`,
+    });
+  }
+
+  const concerns = items.filter((i) => i.verdict !== 'good');
+  return {
+    verdict: concerns.length > 0 ? 'caution' : 'good',
+    neutral: true,
+    verdictText: concerns.length > 0 ? `확인할 점 ${concerns.length}개` : '눈에 띄는 위험 없음',
+    headline:
+      concerns.length > 0
+        ? `${concerns.map((c) => c.title).join(' · ')}\n계약 전에 한 번 더 살펴보세요`
+        : '반경 500m 안에서\n눈에 띄는 위험 요소가 없어요',
+    reasons: [],
+    passed: [],
+    unavailable: api.errors.map((e) => SOURCE_LABEL[e] ?? e),
+    detail: { kind: 'moving', items },
+    hospital: null, // 카드 목록에 이미 포함
+    sources: ['생활안전정보 범죄주의구간·산사태 위험·하천 홍수위험', '국립중앙의료원'],
+    isMock: false,
+  };
 }

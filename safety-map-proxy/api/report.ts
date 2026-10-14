@@ -17,9 +17,10 @@ import {
   regionFromHospital,
   type Region,
 } from '../lib/sources';
+import { getCrimeSample, getFloodSample, getLandslideSample } from '../lib/safemapPixels';
 
 const LOG_PREFIX = '[report]';
-const CATEGORIES = new Set(['hiking', 'camping', 'fishing', 'night']);
+const CATEGORIES = new Set(['hiking', 'camping', 'fishing', 'night', 'moving']);
 
 function getQueryParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -51,8 +52,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 32 || lat > 39.5 || lng < 124 || lng > 132) {
     return res.status(400).json({ error: 'lat/lng out of range' });
   }
-  if (!process.env.PUBLIC_DATA_SERVICE_KEY) {
-    return res.status(500).json({ error: 'PUBLIC_DATA_SERVICE_KEY not set' });
+  if (!process.env.PUBLIC_DATA_SERVICE_KEY || !process.env.SAFEMAP_SERVICE_KEY) {
+    return res.status(500).json({ error: 'service key not set' });
   }
 
   const now = new Date();
@@ -69,17 +70,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!region) region = regionFromHospital(hospitals);
 
     // 2) 카테고리별 소스 병렬 조회
-    const outdoor = category !== 'night';
-    const [weather, warnings, sun, air, fireRisk, nightLow, campsites, tide, fishing] = await Promise.all([
-      settle('weather', errors, getWeather(lat, lng, now)),
-      settle('warnings', errors, getWarnings(region)),
-      settle('sun', errors, getSun(lat, lng, now)),
+    const outdoor = category !== 'night' && category !== 'moving';
+    const moving = category === 'moving';
+    const [weather, warnings, sun, air, fireRisk, nightLow, campsites, tide, fishing, crime, flood, landslide] = await Promise.all([
+      moving ? null : settle('weather', errors, getWeather(lat, lng, now)),
+      moving ? null : settle('warnings', errors, getWarnings(region)),
+      moving ? null : settle('sun', errors, getSun(lat, lng, now)),
       outdoor ? settle('air', errors, getAirQuality(region)) : null,
       category === 'hiking' || category === 'camping' ? settle('fireRisk', errors, getFireRisk(region)) : null,
       category === 'camping' ? settle('nightLow', errors, getNightLow(lat, lng, now)) : null,
       category === 'camping' ? settle('campsites', errors, getCampsites(lat, lng)) : null,
       category === 'fishing' ? settle('tide', errors, getTide(lat, lng, now)) : null,
       category === 'fishing' ? settle('fishing', errors, getFishing(lat, lng, now)) : null,
+      category === 'night' || moving ? settle('crime', errors, getCrimeSample(lat, lng)) : null,
+      moving ? settle('flood', errors, getFloodSample(lat, lng)) : null,
+      moving ? settle('landslide', errors, getLandslideSample(lat, lng)) : null,
     ]);
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
@@ -97,6 +102,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       campsites,
       tide,
       fishing,
+      crime,
+      flood,
+      landslide,
       errors,
     });
   } catch (err) {

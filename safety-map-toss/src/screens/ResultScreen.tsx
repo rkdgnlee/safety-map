@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CATEGORIES, getCategory, type CategoryId, type Place } from '../constants/categories';
 import { COLORS, SCREEN_STYLE, VERDICT_TONE, type Verdict } from '../constants/theme';
-import { MOCK_MOVING_REPORT } from '../mocks/categoryReports';
 import { buildCategoryReport } from '../services/reportBuilder';
 import { fetchReport } from '../services/reportService';
 import type { ApiHospital, CategoryDetail, CategoryReport, TimelineMarker, TimelineSlot } from '../types/report';
@@ -34,10 +33,6 @@ function useCategoryReport(categoryId: CategoryId, place: Place, retryKey: numbe
   const [state, setState] = useState<LoadState>({ status: 'loading' });
 
   useEffect(() => {
-    if (categoryId === 'moving') {
-      setState({ status: 'done', report: MOCK_MOVING_REPORT, at: new Date() });
-      return;
-    }
     let cancelled = false;
     setState({ status: 'loading' });
     fetchReport(categoryId, place)
@@ -453,8 +448,21 @@ function DetailSection({ detail, now, onOpenMap }: { detail: CategoryDetail; now
       return (
         <section style={{ ...panelStyle, marginTop: '32px' }}>
           <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>범죄주의구간 · CCTV</h2>
-          <p style={{ margin: '8px 0 0', fontSize: '13px', lineHeight: 1.6, color: COLORS.textMuted }}>
-            경찰청 범죄주의구간과 공공 CCTV 위치를 지도에서 확인할 수 있어요
+          {detail.crime && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '16px', textAlign: 'center' }}>
+              {[
+                ['반경 500m 최고', detail.crime.maxLevel],
+                ['바로 앞 100m', detail.crime.nearLevel],
+              ].map(([label, level]) => (
+                <div key={label} style={{ padding: '12px', borderRadius: '12px', backgroundColor: COLORS.bg }}>
+                  <strong style={{ display: 'block', fontSize: '20px' }}>{level === null ? '없음' : `${level}단계`}</strong>
+                  <span style={{ fontSize: '12px', color: COLORS.textHint }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <p style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.6, color: COLORS.textHint }}>
+            10단계 중 단계가 높을수록 주의가 필요한 길이에요 · 지도 색으로 추정한 값이에요. 공공 CCTV 위치는 지도에서 볼 수 있어요
           </p>
           <button
             onClick={onOpenMap}

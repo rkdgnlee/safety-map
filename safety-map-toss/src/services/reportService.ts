@@ -6,7 +6,7 @@ const CACHE_TTL_MS = 5 * 60_000;
 
 const cache = new Map<string, { expires: number; value: Promise<ApiReport> }>();
 
-export async function fetchReport(categoryId: Exclude<CategoryId, 'moving'>, place: Place): Promise<ApiReport> {
+export async function fetchReport(categoryId: CategoryId, place: Place): Promise<ApiReport> {
   // 좌표를 소수 셋째 자리(약 100m)로 맞춰 카테고리 칩을 오갈 때 같은 요청을 재사용
   const params = new URLSearchParams({
     category: categoryId,

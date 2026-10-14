@@ -78,6 +78,21 @@ export interface ApiFishing {
   halves: ApiFishingHalf[];
 }
 
+export interface ApiCrimeSample {
+  maxLevel: number | null; // 반경 500m 안 가장 높은 단계 (1~10, 지도 색으로 추정)
+  nearLevel: number | null; // 반경 100m
+  coveredRatio: number;
+}
+
+export interface ApiFloodSample {
+  atPoint: boolean;
+  nearbyRatio: number; // 반경 300m 중 침수 예상 구역 비율
+}
+
+export interface ApiLandslideSample {
+  worstGrade: number | null; // 1(가장 위험) ~ 5
+}
+
 export interface ApiReport {
   category: string;
   generatedAt: string;
@@ -92,6 +107,9 @@ export interface ApiReport {
   campsites: ApiCampsite[] | null;
   tide: ApiTide | null;
   fishing: ApiFishing | null;
+  crime: ApiCrimeSample | null;
+  flood: ApiFloodSample | null;
+  landslide: ApiLandslideSample | null;
   errors: string[];
 }
 
@@ -133,7 +151,7 @@ export type CategoryDetail =
   | { kind: 'hiking'; sunrise: string | null; sunset: string | null; fire: ApiFireRisk | null }
   | { kind: 'camping'; nightLow: number | null; campsites: ApiCampsite[]; fire: ApiFireRisk | null }
   | { kind: 'fishing'; tide: ApiTide | null; fishing: ApiFishing | null }
-  | { kind: 'night'; sunset: string | null }
+  | { kind: 'night'; sunset: string | null; crime: ApiCrimeSample | null }
   | { kind: 'moving'; items: MetricCard[] };
 
 export interface CategoryReport {

@@ -26,7 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       url += `&cond%5BOPN_ATMY_GRP_CD%3A%3AEQ%5D=${encodeURIComponent(sggCode)}`;
     }
 
-    console.log('[cctv] 요청 URL:', url);
+    // 로그에 serviceKey 가 남지 않도록 제외하고 출력
+    console.log('[cctv] 요청 URL:', url.replace(serviceKey, '<KEY>'));
 
     const apiRes = await fetch(url);
 
