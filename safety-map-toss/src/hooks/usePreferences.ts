@@ -1,7 +1,7 @@
 // 검색 기록·최근 본 장소·위치 설정을 기기(localStorage)에 저장한다.
 // 여러 화면에서 같은 값을 보도록 모듈 단위 store + useSyncExternalStore 로 공유.
 import { useSyncExternalStore } from 'react';
-import { DEFAULT_CATEGORY_ORDER, type CategoryId, type Place } from '../constants/categories';
+import { type CategoryId, type Place } from '../constants/categories';
 
 const STORAGE_KEY = 'safety-map:preferences:v1';
 const MAX_HISTORY = 10;
@@ -17,7 +17,6 @@ export interface Preferences {
   defaultPlace: Place | null;
   searchHistory: Place[];
   recentViews: RecentView[];
-  categoryOrder: CategoryId[];
   seenChangelogId: string | null; // 홈 '새로워졌어요' 카드를 닫은 버전
 }
 
@@ -26,7 +25,6 @@ const DEFAULT_PREFERENCES: Preferences = {
   defaultPlace: null,
   searchHistory: [],
   recentViews: [],
-  categoryOrder: DEFAULT_CATEGORY_ORDER,
   seenChangelogId: null,
 };
 
@@ -34,11 +32,10 @@ function load(): Preferences {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_PREFERENCES;
-    const saved = { ...DEFAULT_PREFERENCES, ...JSON.parse(raw) } as Preferences;
-    // 카테고리가 추가·삭제돼도 순서 목록이 깨지지 않게 보정
-    const known = saved.categoryOrder.filter((id) => DEFAULT_CATEGORY_ORDER.includes(id));
-    const missing = DEFAULT_CATEGORY_ORDER.filter((id) => !known.includes(id));
-    return { ...saved, categoryOrder: [...known, ...missing] };
+    // 예전에 저장한 categoryOrder 는 더 이상 쓰지 않는다 (홈 카드 순서는 categories.ts 에 고정)
+    const saved = JSON.parse(raw);
+    delete saved.categoryOrder;
+    return { ...DEFAULT_PREFERENCES, ...saved } as Preferences;
   } catch {
     return DEFAULT_PREFERENCES;
   }
@@ -92,14 +89,6 @@ export const preferenceActions = {
   },
   markChangelogSeen(id: string) {
     setState({ ...state, seenChangelogId: id });
-  },
-  moveCategory(id: CategoryId, direction: -1 | 1) {
-    const order = [...state.categoryOrder];
-    const from = order.indexOf(id);
-    const to = from + direction;
-    if (from < 0 || to < 0 || to >= order.length) return;
-    [order[from], order[to]] = [order[to], order[from]];
-    setState({ ...state, categoryOrder: order });
   },
 };
 

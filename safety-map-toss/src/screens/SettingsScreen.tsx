@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import PlaceSearchSheet from '../components/PlaceSearchSheet';
 import { ChevronRight, Close } from '../components/icons';
 import { CHANGELOG } from '../constants/changelog';
-import { getCategory } from '../constants/categories';
 import { COLORS, FONT_FAMILY, SCREEN_STYLE } from '../constants/theme';
 import { preferenceActions, usePreferences } from '../hooks/usePreferences';
 
@@ -103,32 +102,6 @@ export default function SettingsScreen({ initialInfo }: SettingsScreenProps) {
           muted={prefs.recentViews.length === 0}
           action={<span />}
         />
-      </Section>
-
-      <Section title="홈 카드 순서">
-        {prefs.categoryOrder.map((id, index) => {
-          const c = getCategory(id);
-          return (
-            <Row
-              key={id}
-              title={`${c.emoji} ${c.name}`}
-              action={
-                <span style={{ display: 'flex' }}>
-                  <OrderButton label={`${c.name} 위로`} disabled={index === 0} onClick={() => preferenceActions.moveCategory(id, -1)}>
-                    ↑
-                  </OrderButton>
-                  <OrderButton
-                    label={`${c.name} 아래로`}
-                    disabled={index === prefs.categoryOrder.length - 1}
-                    onClick={() => preferenceActions.moveCategory(id, 1)}
-                  >
-                    ↓
-                  </OrderButton>
-                </span>
-              }
-            />
-          );
-        })}
       </Section>
 
       <Section title="정보">
@@ -272,27 +245,6 @@ function Toggle({ checked, label, onChange }: { checked: boolean; label: string;
           transition: 'transform 0.2s',
         }}
       />
-    </button>
-  );
-}
-
-function OrderButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        width: '44px',
-        height: '44px',
-        border: 'none',
-        background: 'none',
-        color: disabled ? COLORS.track : COLORS.textMuted,
-        fontSize: '16px',
-        cursor: disabled ? 'default' : 'pointer',
-      }}
-    >
-      {children}
     </button>
   );
 }

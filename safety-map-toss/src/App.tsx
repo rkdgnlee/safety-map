@@ -31,6 +31,8 @@ export default function App() {
   const [settingsInfo, setSettingsInfo] = useState<'changelog' | undefined>(undefined);
   const [place, setPlace] = useState<Place | null>(readDeepLinkPlace);
   const [placeStatus, setPlaceStatus] = useState<string | null>(null);
+  // 홈에서 장소만 고른 횟수 — 바뀔 때마다 홈이 카테고리 카드로 안내한다
+  const [placeNudge, setPlaceNudge] = useState(0);
   const [categoryId, setCategoryId] = useState<CategoryId>('hiking');
   // 카테고리를 먼저 눌렀는데 장소가 없으면 검색 후 바로 결과로 이동
   const [searchState, setSearchState] = useState<{ open: boolean; nextCategory: CategoryId | null }>({
@@ -126,6 +128,7 @@ export default function App() {
     setPlace(nextPlace);
     setPlaceStatus(null);
     if (nextCategory) openResult(nextCategory, nextPlace);
+    else setPlaceNudge((n) => n + 1);
   };
 
   // 토스 앱의 뒤로가기: 홈이 아닐 때는 앱을 닫지 않고 이전 화면으로
@@ -167,6 +170,7 @@ export default function App() {
         <HomeScreen
           place={place}
           placeStatus={placeStatus}
+          placeNudge={placeNudge}
           onOpenSearch={() => setSearchState({ open: true, nextCategory: null })}
           onSelectCategory={handleSelectCategory}
           onSelectRecentSearch={(item) => {
@@ -174,6 +178,7 @@ export default function App() {
             setPlace(item);
             setPlaceStatus(null);
             preferenceActions.addSearchHistory(item); // 최근에 쓴 순서로 맨 앞으로
+            setPlaceNudge((n) => n + 1);
           }}
           onOpenSettings={() => {
             setSettingsInfo(undefined);

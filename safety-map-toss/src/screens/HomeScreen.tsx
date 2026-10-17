@@ -1,7 +1,8 @@
-import { Pin, Search, Settings } from '../components/icons';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Pin, Search, Settings } from '../components/icons';
 import { BANNER_AD_GROUP_ID } from '../constants/ads';
 import { LATEST_CHANGELOG } from '../constants/changelog';
-import { getCategory, UPCOMING_CATEGORIES, type CategoryId, type Place } from '../constants/categories';
+import { CATEGORIES, UPCOMING_CATEGORIES, type CategoryId, type Place } from '../constants/categories';
 import { COLORS, SCREEN_STYLE } from '../constants/theme';
 import { preferenceActions, usePreferences } from '../hooks/usePreferences';
 import BannerAdComponent from './BannerAdComponent';
@@ -9,6 +10,7 @@ import BannerAdComponent from './BannerAdComponent';
 interface HomeScreenProps {
   place: Place | null;
   placeStatus: string | null; // 위치 확인 중/실패 안내
+  placeNudge: number; // 홈에서 장소만 고를 때마다 1씩 늘어난다
   onOpenSearch: () => void;
   onSelectRecentSearch: (place: Place) => void;
   onSelectCategory: (id: CategoryId) => void;
@@ -20,14 +22,32 @@ interface HomeScreenProps {
 export default function HomeScreen({
   place,
   placeStatus,
+  placeNudge,
   onOpenSearch,
   onSelectRecentSearch,
   onSelectCategory,
   onOpenSettings,
   onOpenChangelog,
 }: HomeScreenProps) {
-  const { categoryOrder, searchHistory, seenChangelogId } = usePreferences();
+  const { searchHistory, seenChangelogId } = usePreferences();
   const showWhatsNew = seenChangelogId !== LATEST_CHANGELOG.id;
+
+  // 장소를 고르면: 위쪽 위치 줄을 반짝여 바뀐 걸 보여주고, 카테고리 카드로 내려가 고르도록 안내한다
+  const categoryRef = useRef<HTMLElement>(null);
+  const lastNudge = useRef(placeNudge); // 결과에서 돌아왔을 때는 다시 안내하지 않는다
+  const [guiding, setGuiding] = useState(false);
+  const [flashKey, setFlashKey] = useState(0);
+  useEffect(() => {
+    if (placeNudge === lastNudge.current) return;
+    lastNudge.current = placeNudge;
+    setGuiding(true);
+    setFlashKey((k) => k + 1);
+    const timer = window.setTimeout(() => {
+      const el = categoryRef.current;
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 16, behavior: 'smooth' });
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [placeNudge]);
 
   return (
     <main style={SCREEN_STYLE}>
@@ -37,11 +57,20 @@ export default function HomeScreen({
         .category-card:active { transform: scale(.97); filter: brightness(.97); }
         .category-card .emoji-badge { transition: transform .2s ease; }
         .category-card:active .emoji-badge { transform: rotate(-8deg) scale(1.06); }
+        @keyframes place-flash { 0%, 60% { background-color: ${COLORS.primarySoft}; } 100% { background-color: transparent; } }
+        .place-flash { animation: place-flash 1.6s ease-out; }
+        @keyframes guide-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+        @keyframes card-nudge { 0%, 100% { transform: none; } 40% { transform: translateY(-4px); } }
+        .guiding .category-card { animation: card-nudge .5s ease-in-out 1s 2; }
+        @keyframes arrow-bob { 0%, 100% { transform: none; } 50% { transform: translateY(3px); } }
+        @media (prefers-reduced-motion: reduce) { .place-flash, .guiding .category-card, .guide-arrow { animation: none !important; } }
       `}</style>
 
       {/* 1. 위치 · 새 기능 · 설정 — 한 줄로 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <button
+          key={flashKey}
+          className={flashKey > 0 ? 'place-flash' : undefined}
           onClick={onOpenSearch}
           style={{
             flex: 1,
@@ -50,9 +79,10 @@ export default function HomeScreen({
             alignItems: 'center',
             gap: '6px',
             minHeight: '44px',
-            padding: '0 4px',
+            padding: '0 8px',
             border: 'none',
-            background: 'none',
+            borderRadius: '12px',
+            backgroundColor: 'transparent',
             color: COLORS.text,
             fontSize: '15px',
             fontWeight: 600,
@@ -177,11 +207,39 @@ export default function HomeScreen({
       </div>
 
       {/* 6. 카테고리 */}
-      <section style={{ marginTop: '24px' }}>
+      <section ref={categoryRef} className={guiding ? 'guiding' : undefined} style={{ marginTop: '24px' }}>
+        {guiding && place && (
+          <div
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginBottom: '12px',
+              padding: '12px 14px',
+              borderRadius: '14px',
+              backgroundColor: COLORS.primarySoft,
+              animation: 'guide-in .3s ease-out',
+            }}
+          >
+            <span style={{ display: 'flex', flexShrink: 0, color: COLORS.primary }}>
+              <Pin size={18} />
+            </span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: '15px', lineHeight: 1.5, color: COLORS.text }}>
+              <strong style={{ fontWeight: 700, color: COLORS.primaryStrong }}>{place.label}</strong>
+              {', 어떤 정보가 궁금하세요?'}
+              <br />
+              <span style={{ color: COLORS.textSub }}>아래에서 하려는 일을 골라 주세요</span>
+            </span>
+            <span className="guide-arrow" style={{ display: 'flex', flexShrink: 0, color: COLORS.primary, animation: 'arrow-bob 1s ease-in-out infinite' }}>
+              <ChevronDown size={20} />
+            </span>
+          </div>
+        )}
         <h2 style={{ margin: '0 0 12px', fontSize: '20px', fontWeight: 700 }}>무엇을 하러 가세요?</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          {categoryOrder.map((id) => {
-            const category = getCategory(id);
+          {CATEGORIES.map((category) => {
+            const id = category.id;
             return (
               <button
                 key={id}

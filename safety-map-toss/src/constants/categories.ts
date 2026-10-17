@@ -11,19 +11,17 @@ export interface CategoryMeta {
 }
 
 export const CATEGORIES: CategoryMeta[] = [
-  // 홈 카드는 2열로 이 순서대로 놓인다: 이사·자취방 | 점심시간 산책 / 밤길·귀가 | 등산 / 바다낚시 | 캠핑
-  { id: 'moving', emoji: '🏠', name: '이사·자취방', description: '범죄 · 하천 범람 · 산사태', tint: ['#FCEFF5', '#F6DCE8'], accent: '#963461' },
+  // 홈 카드 순서는 고정이다 (2열): 점심시간 산책 | 이사·자취방 / 밤길·귀가 | 등산 / 캠핑 | 바다낚시
   { id: 'walk', emoji: '🚶', name: '점심시간 산책', description: '점심시간 날씨 · 비 · 바람', tint: ['#FFF8DB', '#FCECB0'], accent: '#6E5200' },
+  { id: 'moving', emoji: '🏠', name: '이사·자취방', description: '범죄 · 하천 범람 · 산사태', tint: ['#FCEFF5', '#F6DCE8'], accent: '#963461' },
   { id: 'night', emoji: '🌙', name: '밤길·귀가', description: '범죄주의구간 · 날씨 · 응급실', tint: ['#EEF0FA', '#DCE0F5'], accent: '#3D4FA3' },
   { id: 'hiking', emoji: '⛰️', name: '등산', description: '바람 · 산불위험 · 일몰', tint: ['#E9F7EE', '#D2EEDC'], accent: '#1B6E3F' },
-  { id: 'fishing', emoji: '🎣', name: '바다낚시', description: '물때 · 낚시지수 · 파고', tint: ['#E5F4FB', '#CDE8F5'], accent: '#0A5F80' },
   { id: 'camping', emoji: '⛺', name: '캠핑', description: '밤 기온 · 바람 · 근처 캠핑장', tint: ['#FFF2E6', '#FFE2C9'], accent: '#A14A0C' },
+  { id: 'fishing', emoji: '🎣', name: '바다낚시', description: '물때 · 낚시지수 · 파고', tint: ['#E5F4FB', '#CDE8F5'], accent: '#0A5F80' },
 ];
 
 // 아직 데이터가 없어 홈에 비활성 카드로만 노출
 export const UPCOMING_CATEGORIES = [{ emoji: '🏃', name: '러닝' }];
-
-export const DEFAULT_CATEGORY_ORDER: CategoryId[] = CATEGORIES.map((c) => c.id);
 
 export function getCategory(id: CategoryId): CategoryMeta {
   return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[0];
