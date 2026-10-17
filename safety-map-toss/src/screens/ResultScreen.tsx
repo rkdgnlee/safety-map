@@ -4,6 +4,7 @@ import { COLORS, SCREEN_STYLE, VERDICT_TONE, type Verdict } from '../constants/t
 import { buildCategoryReport } from '../services/reportBuilder';
 import { fetchReport } from '../services/reportService';
 import type { ApiHospital, CategoryDetail, CategoryReport, TimelineMarker, TimelineSlot } from '../types/report';
+import { ChevronDown, ChevronUp, Search } from '../components/icons';
 import ResultMiniMap, { type MiniMapLayerId } from '../components/ResultMiniMap';
 import { BANNER_AD_GROUP_ID, DWELL_AD_SCROLL_RATIO, DWELL_AD_SECONDS } from '../constants/ads';
 import BannerAdComponent from './BannerAdComponent';
@@ -11,7 +12,6 @@ import BannerAdComponent from './BannerAdComponent';
 interface ResultScreenProps {
   categoryId: CategoryId;
   place: Place;
-  onBack: () => void;
   onChangeCategory: (id: CategoryId) => void;
   onOpenMap: (layer: MiniMapLayerId) => void;
   onSearchPlace: () => void; // 같은 카테고리로 다른 장소 보기
@@ -33,35 +33,26 @@ const FISHING_INDEX_VERDICT: Record<string, Verdict> = {
   매우나쁨: 'bad',
 };
 
-// 결과를 DWELL_AD_SECONDS 이상 보고, 화면의 DWELL_AD_SCROLL_RATIO 이상까지 내려 읽으면 onEngaged 를 한 번 부른다
+// 결과를 DWELL_AD_SECONDS 이상 보거나, 화면의 DWELL_AD_SCROLL_RATIO 이상까지 스크롤하면 onEngaged 를 한 번 부른다
 function useReadingEngagement(active: boolean, resetKey: string, onEngaged: () => void) {
   const onEngagedRef = useRef(onEngaged);
   onEngagedRef.current = onEngaged;
 
   useEffect(() => {
     if (!active) return;
-    let timeReached = false;
-    let scrollReached = false;
     let fired = false;
-    const check = () => {
-      if (!fired && timeReached && scrollReached) {
-        fired = true;
-        onEngagedRef.current();
-      }
+    const fire = () => {
+      if (fired) return;
+      fired = true;
+      onEngagedRef.current();
     };
+    // 사용자가 직접 스크롤했을 때만 판단 (화면이 짧아 처음부터 끝이 보이는 경우는 시간 조건으로만)
     const handleScroll = () => {
       const doc = document.documentElement;
       const ratio = (window.scrollY + window.innerHeight) / Math.max(doc.scrollHeight, 1);
-      if (ratio >= DWELL_AD_SCROLL_RATIO) {
-        scrollReached = true;
-        check();
-      }
+      if (window.scrollY > 0 && ratio >= DWELL_AD_SCROLL_RATIO) fire();
     };
-    const timer = setTimeout(() => {
-      timeReached = true;
-      handleScroll(); // 화면이 짧아 스크롤할 필요가 없는 경우도 반영
-      check();
-    }, DWELL_AD_SECONDS * 1000);
+    const timer = setTimeout(fire, DWELL_AD_SECONDS * 1000);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       clearTimeout(timer);
@@ -97,7 +88,6 @@ function useCategoryReport(categoryId: CategoryId, place: Place, retryKey: numbe
 export default function ResultScreen({
   categoryId,
   place,
-  onBack,
   onChangeCategory,
   onOpenMap,
   onSearchPlace,
@@ -120,29 +110,8 @@ export default function ResultScreen({
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
       `}</style>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={onBack} style={{ ...textButtonStyle, color: COLORS.textSub, fontSize: '15px' }}>
-          ‹ 홈으로
-        </button>
-        <button
-          onClick={onSearchPlace}
-          style={{
-            ...textButtonStyle,
-            gap: '4px',
-            padding: '0 12px',
-            minHeight: '36px',
-            borderRadius: '18px',
-            backgroundColor: COLORS.surfaceStrong,
-            color: COLORS.textSub,
-            fontSize: '13px',
-            fontWeight: 500,
-          }}
-        >
-          🔍 다른 장소
-        </button>
-      </div>
-
-      <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', margin: '12px -20px 0', padding: '0 20px' }}>
+      {/* 상단 내비게이션(뒤로가기)은 토스가 그려주므로 화면 안에는 그리지 않는다 */}
+      <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', margin: '0 -20px', padding: '0 20px' }}>
         {CATEGORIES.map((c) => {
           const active = c.id === categoryId;
           return (
@@ -151,13 +120,13 @@ export default function ResultScreen({
               onClick={() => onChangeCategory(c.id)}
               style={{
                 flexShrink: 0,
-                minHeight: '36px',
-                padding: '0 12px',
+                minHeight: '44px',
+                padding: '0 14px',
                 border: 'none',
-                borderRadius: '18px',
+                borderRadius: '22px',
                 backgroundColor: active ? COLORS.primary : COLORS.surfaceStrong,
                 color: active ? '#ffffff' : COLORS.textSub,
-                fontSize: '13px',
+                fontSize: '15px',
                 fontWeight: active ? 600 : 500,
                 cursor: 'pointer',
               }}
@@ -168,11 +137,30 @@ export default function ResultScreen({
         })}
       </div>
 
-      <header style={{ marginTop: '24px' }}>
-        <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 700, letterSpacing: '-0.5px' }}>
-          {categoryId === 'moving' ? `${place.label} 안전 리포트` : place.label}
-        </h1>
-        <p style={{ margin: '8px 0 0', fontSize: '12px', color: COLORS.textHint }}>
+      <header style={{ marginTop: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+          <h1 style={{ margin: 0, minWidth: 0, fontSize: '26px', fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.35 }}>
+            {categoryId === 'moving' ? `${place.label} 안전 리포트` : place.label}
+          </h1>
+          <button
+            onClick={onSearchPlace}
+            style={{
+              ...textButtonStyle,
+              flexShrink: 0,
+              gap: '4px',
+              padding: '0 12px',
+              borderRadius: '22px',
+              backgroundColor: COLORS.surfaceStrong,
+              color: COLORS.textSub,
+              fontSize: '15px',
+              fontWeight: 500,
+            }}
+          >
+            <Search size={16} />
+            장소 변경
+          </button>
+        </div>
+        <p style={{ margin: '8px 0 0', fontSize: '13px', color: COLORS.textHint }}>
           {state.status === 'done' ? `${formatClock(state.at)} 기준` : '불러오는 중'}
           {state.status === 'done' && state.report.regionLabel && ` · ${state.report.regionLabel}`} · {category.emoji} {category.name}
           {state.status === 'done' && state.report.isMock && (
@@ -208,7 +196,7 @@ export default function ResultScreen({
       <div style={{ marginTop: '28px' }}>
         <BannerAdComponent adGroupId={BANNER_AD_GROUP_ID} />
       </div>
-      <p style={{ margin: '20px 0 0', textAlign: 'center', fontSize: '12px', color: '#a0a8b2' }}>
+      <p style={{ margin: '20px 0 0', textAlign: 'center', fontSize: '13px', color: '#a0a8b2' }}>
         참고용 정보이며 현장 상황과 다를 수 있어요
       </p>
     </main>
@@ -226,7 +214,7 @@ function ReportBody({ report, now, center, onOpenMap }: { report: CategoryReport
       <VerdictCard report={report} />
 
       {report.unavailable.length > 0 && (
-        <p style={{ margin: '12px 0 0', fontSize: '12px', color: COLORS.textHint }}>
+        <p style={{ margin: '12px 0 0', fontSize: '13px', color: COLORS.textHint }}>
           {report.unavailable.join(', ')} 정보를 지금 불러오지 못해 판정에서 빠졌어요
         </p>
       )}
@@ -246,7 +234,7 @@ function ReportBody({ report, now, center, onOpenMap }: { report: CategoryReport
 
       <section style={{ marginTop: '32px' }}>
         <h2 style={{ ...sectionTitleStyle, fontSize: '15px', marginBottom: '8px' }}>데이터 출처</h2>
-        <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.7, color: COLORS.textHint }}>{report.sources.join(' · ')}</p>
+        <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.7, color: COLORS.textHint }}>{report.sources.join(' · ')}</p>
       </section>
     </>
   );
@@ -276,7 +264,7 @@ function VerdictCard({ report }: { report: CategoryReport }) {
         backgroundColor: report.neutral ? COLORS.primarySoft : tone.bg,
       }}
     >
-      <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: report.neutral ? COLORS.primary : tone.text }}>
+      <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: report.neutral ? COLORS.primary : tone.text }}>
         {report.verdictText}
       </p>
       <h2 style={{ margin: '8px 0 0', fontSize: '19px', fontWeight: 700, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
@@ -313,16 +301,16 @@ function Timeline({ slots, markers, metricLabel }: { slots: TimelineSlot[]; mark
                 boxShadow: highlighted ? `inset 0 0 0 1px ${tone.ring}` : 'none',
               }}
             >
-              <span style={{ fontSize: '12px', color: COLORS.textHint }}>{slot.label}</span>
+              <span style={{ fontSize: '13px', color: COLORS.textHint }}>{slot.label}</span>
               <span style={{ fontSize: '20px' }}>{slot.icon}</span>
               <strong style={{ fontSize: '15px' }}>{slot.temp === null ? '-' : `${slot.temp}°`}</strong>
-              <span style={{ fontSize: '12px', color: COLORS.textMuted }}>{slot.metric}</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: tone.text }}>
+              <span style={{ fontSize: '13px', color: COLORS.textMuted }}>{slot.metric}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '13px', color: tone.text }}>
                 <i style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: tone.dot }} />
                 {tone.label}
               </span>
               {slotMarkers.map((m) => (
-                <span key={m.label} style={{ fontSize: '11px', color: COLORS.textSub, textAlign: 'center' }}>
+                <span key={m.label} style={{ fontSize: '13px', color: COLORS.textSub, textAlign: 'center' }}>
                   {m.label}
                   <br />
                   {m.time}
@@ -332,7 +320,7 @@ function Timeline({ slots, markers, metricLabel }: { slots: TimelineSlot[]; mark
           );
         })}
       </div>
-      <p style={{ margin: '8px 0 0', fontSize: '12px', color: COLORS.textHint }}>시간대별 아래 수치는 {metricLabel}예요</p>
+      <p style={{ margin: '8px 0 0', fontSize: '13px', color: COLORS.textHint }}>시간대별 아래 수치는 {metricLabel}예요</p>
     </div>
   );
 }
@@ -349,13 +337,13 @@ function ReasonList({ report }: { report: CategoryReport }) {
           <div key={reason.title} style={{ display: 'flex', gap: '12px', padding: '16px 0', borderBottom: `1px solid #e9ebee` }}>
             <span aria-hidden>{reason.icon}</span>
             <div style={{ minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+              <p style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>
                 {reason.title} <span style={{ fontWeight: 400, color: COLORS.textMuted }}>· {reason.value}</span>
-                <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 600, color: VERDICT_TONE[reason.verdict].text }}>
+                <span style={{ marginLeft: '6px', fontSize: '13px', fontWeight: 600, color: VERDICT_TONE[reason.verdict].text }}>
                   {VERDICT_TONE[reason.verdict].label}
                 </span>
               </p>
-              <p style={{ margin: '4px 0 0', fontSize: '12px', lineHeight: 1.6, color: COLORS.textHint }}>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.6, color: COLORS.textHint }}>
                 {reason.criterion} · {reason.source}
               </p>
             </div>
@@ -368,7 +356,7 @@ function ReasonList({ report }: { report: CategoryReport }) {
               style={{ ...textButtonStyle, width: '100%', justifyContent: 'space-between', padding: '14px 0', fontSize: '13px', color: COLORS.textMuted }}
             >
               <span>문제 없음 {report.passed.length}개</span>
-              <span>{showPassed ? '접기' : '펼치기'}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>{showPassed ? '접기' : '펼치기'}{showPassed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
             </button>
             {showPassed && (
               <ul style={{ margin: 0, padding: '0 0 14px', listStyle: 'none' }}>
@@ -390,7 +378,7 @@ function HospitalCard({ hospital }: { hospital: ApiHospital }) {
   return (
     <section style={{ ...panelStyle, marginTop: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
       <div style={{ minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: '12px', color: COLORS.textHint }}>가까운 응급의료기관 · {formatKm(hospital.distanceKm)}</p>
+        <p style={{ margin: 0, fontSize: '13px', color: COLORS.textHint }}>가까운 응급의료기관 · {formatKm(hospital.distanceKm)}</p>
         <p style={{ margin: '4px 0 0', fontSize: '15px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {hospital.name}
         </p>
@@ -407,7 +395,7 @@ function HospitalCard({ hospital }: { hospital: ApiHospital }) {
             borderRadius: '10px',
             backgroundColor: COLORS.bg,
             color: COLORS.primary,
-            fontSize: '14px',
+            fontSize: '15px',
             fontWeight: 600,
             textDecoration: 'none',
           }}
@@ -436,7 +424,7 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
           <div style={{ marginTop: '16px', height: '8px', borderRadius: '4px', backgroundColor: COLORS.track, overflow: 'hidden' }}>
             <div style={{ width: `${ratio * 100}%`, height: '100%', borderRadius: '4px', backgroundColor: COLORS.primary }} />
           </div>
-          <p style={{ margin: '16px 0 0', fontSize: '12px', color: COLORS.textHint }}>
+          <p style={{ margin: '16px 0 0', fontSize: '13px', color: COLORS.textHint }}>
             일출 {detail.sunrise} · 일몰 {detail.sunset}
             {detail.fire && ` · 산불위험 ${detail.fire.grade} (${detail.fire.area})`}
           </p>
@@ -454,11 +442,11 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
           )}
           {detail.campsites.map((site) => (
             <div key={site.name} style={{ marginTop: '12px' }}>
-              <p style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', margin: 0, fontSize: '14px', color: COLORS.text }}>
+              <p style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', margin: 0, fontSize: '15px', color: COLORS.text }}>
                 <span style={{ fontWeight: 500 }}>{site.name}</span>
                 <span style={{ flexShrink: 0, color: COLORS.textMuted }}>{formatKm(site.distanceKm)}</span>
               </p>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: COLORS.textHint }}>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: COLORS.textHint }}>
                 {site.type} · {site.address}
               </p>
             </div>
@@ -472,7 +460,7 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>다가오는 물때</h2>
             {detail.tide && (
-              <span style={{ fontSize: '12px', color: COLORS.textHint }}>
+              <span style={{ fontSize: '13px', color: COLORS.textHint }}>
                 {detail.tide.station} 기준 · {formatKm(detail.tide.distanceKm)}
               </span>
             )}
@@ -482,12 +470,12 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
               {detail.tide.events.map((e) => {
                 return (
                   <div key={`${e.date}-${e.time}`} style={{ padding: '12px', borderRadius: '12px', backgroundColor: COLORS.bg }}>
-                    <span style={{ fontSize: '12px', color: e.type === '만조' ? COLORS.primary : COLORS.textMuted }}>
+                    <span style={{ fontSize: '13px', color: e.type === '만조' ? COLORS.primary : COLORS.textMuted }}>
                       {e.type === '만조' ? '🌊 만조' : '🏖️ 간조'}
                       {e.date !== today && ' · 내일'}
                     </span>
                     <strong style={{ display: 'block', marginTop: '4px', fontSize: '18px' }}>{e.time}</strong>
-                    <span style={{ fontSize: '12px', color: COLORS.textHint }}>{e.levelCm}cm</span>
+                    <span style={{ fontSize: '13px', color: COLORS.textHint }}>{e.levelCm}cm</span>
                   </div>
                 );
               })}
@@ -509,14 +497,14 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
             <div style={{ display: 'flex', gap: '8px' }}>
               {detail.fishing.halves.map((h) => (
                 <div key={h.half} style={{ flex: 1, padding: '12px', borderRadius: '12px', backgroundColor: COLORS.bg }}>
-                  <span style={{ fontSize: '12px', color: COLORS.textHint }}>{h.half}</span>
+                  <span style={{ fontSize: '13px', color: COLORS.textHint }}>{h.half}</span>
                   <strong style={{ display: 'block', marginTop: '4px', fontSize: '18px', color: VERDICT_TONE[FISHING_INDEX_VERDICT[h.index] ?? 'caution'].text }}>
                     {h.index}
                   </strong>
-                  <span style={{ display: 'block', marginTop: '4px', fontSize: '12px', color: COLORS.textMuted }}>
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: '13px', color: COLORS.textMuted }}>
                     파고 {h.maxWave}m · 수온 {h.waterTemp}°C
                   </span>
-                  <span style={{ display: 'block', marginTop: '2px', fontSize: '11px', color: COLORS.textHint }}>
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: '13px', color: COLORS.textHint }}>
                     {h.species.map((s) => `${s.name} ${s.index}`).join(' · ')}
                   </span>
                 </div>
@@ -540,12 +528,12 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
               ].map(([label, level]) => (
                 <div key={label} style={{ padding: '12px', borderRadius: '12px', backgroundColor: COLORS.bg }}>
                   <strong style={{ display: 'block', fontSize: '20px' }}>{level === null ? '없음' : `${level}단계`}</strong>
-                  <span style={{ fontSize: '12px', color: COLORS.textHint }}>{label}</span>
+                  <span style={{ fontSize: '13px', color: COLORS.textHint }}>{label}</span>
                 </div>
               ))}
             </div>
           )}
-          <p style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.6, color: COLORS.textHint }}>
+          <p style={{ margin: '12px 0 0', fontSize: '13px', lineHeight: 1.6, color: COLORS.textHint }}>
             10단계 중 단계가 높을수록 주의가 필요한 길이에요 · 지도 색으로 추정한 값이에요. 공공 CCTV 위치는 전체 지도에서 볼 수 있어요
           </p>
           <div style={{ marginTop: '16px' }}>
@@ -570,7 +558,7 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
                 <div style={{ marginTop: '12px', height: '8px', borderRadius: '4px', backgroundColor: COLORS.track, overflow: 'hidden' }}>
                   <div style={{ width: `${item.ratio * 100}%`, height: '100%', borderRadius: '4px', backgroundColor: tone.dot }} />
                 </div>
-                <p style={{ margin: '8px 0 0', fontSize: '12px', color: COLORS.textHint }}>{item.desc}</p>
+                <p style={{ margin: '8px 0 0', fontSize: '13px', color: COLORS.textHint }}>{item.desc}</p>
               </div>
             );
           })}

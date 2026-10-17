@@ -5,6 +5,7 @@ import { NATURAL_HAZARD_LAYERS } from '../constants/naturalHazardLayers';
 import { SAFEMAP_LAYERS } from '../constants/safemapLayers';
 import { COLORS } from '../constants/theme';
 import { useNaverMap } from '../hooks/useNaverMap';
+import { ChevronRight } from './icons';
 
 const PROXY_BASE_URL = import.meta.env.VITE_PROXY_BASE_URL;
 const RADIUS_M = 500;
@@ -161,19 +162,23 @@ export default function ResultMiniMap({ center, layers, onOpenFullMap }: ResultM
               position: 'absolute',
               right: '8px',
               top: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
               padding: '6px 10px',
               borderRadius: '14px',
               backgroundColor: 'rgba(255,255,255,0.92)',
               color: COLORS.primary,
-              fontSize: '12px',
+              fontSize: '13px',
               fontWeight: 600,
             }}
           >
-            전체 지도 ›
+            전체 지도
+            <ChevronRight size={14} />
           </span>
         </button>
       </div>
-      <p style={{ margin: '8px 0 0', fontSize: '12px', lineHeight: 1.6, color: COLORS.textHint }}>
+      <p style={{ margin: '8px 0 0', fontSize: '13px', lineHeight: 1.6, color: COLORS.textHint }}>
         반경 500m · {LAYERS[activeLayer].legend}
       </p>
     </div>

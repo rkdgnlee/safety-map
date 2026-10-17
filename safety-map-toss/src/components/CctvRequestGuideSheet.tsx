@@ -1,4 +1,5 @@
 // safety-map-toss/src/components/CctvRequestGuideSheet.tsx
+import { Close } from './icons';
 import { type CSSProperties } from 'react';
 
 interface CctvItem {
@@ -90,7 +91,7 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            ✕
+            <Close size={18} />
           </button>
         </div>
 
@@ -118,7 +119,7 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
                 href={`tel:${cctv.telno}`}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  fontSize: '13px', fontWeight: '600', color: '#0064ff',
+                  fontSize: '13px', fontWeight: '600', color: '#3D4FA3',
                   textDecoration: 'none',
                   backgroundColor: '#eef4ff', padding: '6px 12px', borderRadius: '12px',
                 }}
@@ -168,7 +169,7 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
             </div>
 
             <div style={s.stepCard}>
-              <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: '700', color: '#8b95a1' }}>
+              <p style={{ margin: '0 0 6px', fontSize: '12px', fontWeight: '700', color: '#8b95a1' }}>
                 제목
               </p>
               <div style={s.copyBox}>
@@ -177,7 +178,7 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
                 </p>
               </div>
 
-              <p style={{ margin: '14px 0 6px', fontSize: '11px', fontWeight: '700', color: '#8b95a1' }}>
+              <p style={{ margin: '14px 0 6px', fontSize: '12px', fontWeight: '700', color: '#8b95a1' }}>
                 청구 기관
               </p>
               <div style={s.copyBox}>
@@ -186,7 +187,7 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
                 </p>
               </div>
 
-              <p style={{ margin: '14px 0 6px', fontSize: '11px', fontWeight: '700', color: '#8b95a1' }}>
+              <p style={{ margin: '14px 0 6px', fontSize: '12px', fontWeight: '700', color: '#8b95a1' }}>
                 청구 내용 (기본 템플릿)
               </p>
               <div style={{ ...s.copyBox, whiteSpace: 'pre-line' }}>
@@ -214,7 +215,7 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
                   <span style={{
                     width: '20px', height: '20px', borderRadius: '50%',
                     backgroundColor: '#191f28', color: '#fff',
-                    fontSize: '11px', fontWeight: 'bold',
+                    fontSize: '12px', fontWeight: 'bold',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                   }}>
@@ -231,10 +232,10 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
             onClick={handleOpenPortal}
             style={{
               width: '100%', padding: '18px',
-              backgroundColor: '#0064ff', color: '#ffffff',
+              backgroundColor: '#3D4FA3', color: '#ffffff',
               border: 'none', borderRadius: '16px',
               fontSize: '16px', fontWeight: 'bold', cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,100,255,0.25)',
+              boxShadow: '0 4px 12px rgba(61,79,163,0.25)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}
           >
@@ -255,7 +256,7 @@ const s: Record<string, CSSProperties> = {
   },
   stepBadge: {
     backgroundColor: '#191f28', color: '#ffffff',
-    fontSize: '11px', fontWeight: '700',
+    fontSize: '12px', fontWeight: '700',
     padding: '3px 10px', borderRadius: '10px',
   },
   stepTitle: {

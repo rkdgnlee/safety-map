@@ -3,9 +3,9 @@
 // 결과 화면을 이만큼 볼 때마다 전면 광고 1회 (앱을 켠 동안 기준)
 export const RESULT_VIEWS_PER_AD = 6;
 
-// 결과 하나를 이만큼 오래, 이만큼 깊이 읽은 사용자는 그 화면을 떠날 때 전면 광고 1회 (앱을 켠 동안 한 번만)
+// 결과 하나를 이만큼 오래 보거나, 이만큼 깊이 내려 읽은 사용자는 그 화면을 떠날 때 전면 광고 1회 (앱을 켠 동안 한 번만)
 export const DWELL_AD_SECONDS = 17;
-export const DWELL_AD_SCROLL_RATIO = 0.6;
+export const DWELL_AD_SCROLL_RATIO = 0.7;
 
 // 지도에서 범죄 유형을 이만큼 무료로 바꿔볼 수 있고, 그다음 바꿀 때 전면 광고
 export const MAP_FREE_TYPE_CHANGES = 3;

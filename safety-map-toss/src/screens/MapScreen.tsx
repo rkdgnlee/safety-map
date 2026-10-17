@@ -5,7 +5,8 @@ import { NATURAL_HAZARD_LAYER_LIST } from '../constants/naturalHazardLayers';
 import { getTossShareLink, share } from '@apps-in-toss/web-framework';
 import { useNaturalHazardOverlay } from '../hooks/useNaturalHazardOverlay';
 import { MAP_FREE_TYPE_CHANGES } from '../constants/ads';
-import { showInterstitial } from '../services/interstitialAd';
+import { Close } from '../components/icons';
+import { requestAdWithNotice } from '../services/adNotice';
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
 
@@ -16,7 +17,6 @@ interface MapScreenProps {
   addressLabel: string | null; // ← 추가
   initialTab?: MapTab; // 결과 화면 미니맵에서 보던 레이어 쪽 탭으로 열기
   initialHazard?: string; // 자연재해 탭에서 처음 켤 레이어 (riverFlood, landslide)
-  onBack: () => void;
 }
 const crimeKeyword: Record<string, string> = {
   all: '범죄 사건',
@@ -45,7 +45,7 @@ interface NewsItem {
   originallink: string;
   pubDate: string;
 }
-export default function MapScreen({ location, addressLabel, initialTab = 'crime', initialHazard, onBack }: MapScreenProps) {
+export default function MapScreen({ location, addressLabel, initialTab = 'crime', initialHazard }: MapScreenProps) {
   const [selectedType, setSelectedType] = useState('all');
   const [mapTab, setMapTab] = useState<MapTab>(initialTab);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -57,15 +57,22 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
       return;
     }
 
-    crimeViewCountRef.current += 1;
-
-    // 맛보기로 몇 번은 바로 보여주고, 그다음 바꿀 때 전면 광고 후 이어서 보여준다
-    if (crimeViewCountRef.current > MAP_FREE_TYPE_CHANGES) {
-      crimeViewCountRef.current = 0;
-      showInterstitial(() => setSelectedType(typeId));
-    } else {
-      setSelectedType(typeId);
+    // 맛보기로 몇 번은 바로 보여주고, 그다음부터는 광고 안내 후 동의하면 광고를 보고 이어서 보여준다
+    if (crimeViewCountRef.current >= MAP_FREE_TYPE_CHANGES) {
+      const label = CRIME_TYPES.find((t) => t.id === typeId)?.label ?? '다른 범죄 유형';
+      requestAdWithNotice({
+        title: `${label} 지도를 보기 전에 광고가 한 번 나와요`,
+        description: '광고가 끝나면 바로 지도에 표시해 드려요.',
+        confirmLabel: '광고 보고 계속하기',
+        onContinue: () => {
+          crimeViewCountRef.current = 0;
+          setSelectedType(typeId);
+        },
+      });
+      return;
     }
+    crimeViewCountRef.current += 1;
+    setSelectedType(typeId);
   }, []);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -75,9 +82,15 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
   });
   
   // 💡 훅에서 데이터 로딩 상태(isLoading)를 받아옵니다.
-  // 지도를 많이 움직여 레이어를 여러 번 새로 불러오면 전면 광고 (화면은 그대로 유지)
+  // 지도를 많이 움직여 레이어를 여러 번 새로 불러오면, 광고 안내 후 동의하면 광고를 보고 다시 검색한다
+  const searchAgainRef = useRef<() => void>(() => {});
   const handleOverlayAdTrigger = useCallback(() => {
-    showInterstitial();
+    requestAdWithNotice({
+      title: '이 지역을 다시 검색하기 전에 광고가 한 번 나와요',
+      description: '광고가 끝나면 바로 지금 보이는 지역의 정보를 불러와요.',
+      confirmLabel: '광고 보고 계속하기',
+      onContinue: () => searchAgainRef.current(),
+    });
   }, []);
 
   const handleShare = async () => {
@@ -135,6 +148,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
       refreshSelectedHazard();
     }
   }, [mapTab, fetchOverlay, refreshSelectedHazard]);
+  searchAgainRef.current = handleSearchThisArea;
 
   const isAnyLoading = mapTab === 'crime' ? isOverlayLoading : isHazardLoading;
 
@@ -175,7 +189,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
       height: '100vh',
       backgroundColor: '#f2f4f6',
       overflow: 'hidden',
-      fontFamily: '"Pretendard", sans-serif'
+      fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, "Tossface", sans-serif'
     }}>
       
       <style>{`
@@ -305,16 +319,8 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
-          <button
-            onClick={onBack}
-            aria-label="뒤로"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '50%', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', cursor: 'pointer', fontSize: '16px'
-            }}
-          >
-            ‹
-          </button>
+        {/* 뒤로가기는 토스 내비게이션 바가 담당한다 — 화면 안에는 그리지 않는다 */}
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
 
           <div style={{
             display: 'flex', flexDirection: 'row', gap: '14px',
@@ -326,15 +332,15 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
           }}>
             {mapTab === 'crime' ? (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '600', color: '#333' }}>
                   <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffeb3b', border: '1px solid #e0d000', flexShrink: 0 }} />
                   빈도 낮음
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '600', color: '#333' }}>
                   <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff9500', flexShrink: 0 }} />
                   중간
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '600', color: '#333' }}>
                   <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d4d', flexShrink: 0 }} />
                   심함
                 </div>
@@ -343,7 +349,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
               NATURAL_HAZARD_LAYER_LIST.map((layer) => {
                 const isSelected = selectedHazard === layer.id;
                 return (
-                  <div key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: isSelected ? '#333' : '#c1c7cd' }}>
+                  <div key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '600', color: isSelected ? '#333' : '#c1c7cd' }}>
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: layer.color, flexShrink: 0, opacity: isSelected ? 1 : 0.4 }} />
                     {layer.label}
                   </div>
@@ -355,7 +361,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
               style={{
                 width: '18px', height: '18px', borderRadius: '50%',
                 backgroundColor: '#d1d6db', border: 'none', cursor: 'pointer',
-                fontSize: '11px', fontWeight: 'bold', color: '#ffffff',
+                fontSize: '12px', fontWeight: 'bold', color: '#ffffff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: 0, marginLeft: '2px', flexShrink: 0,
               }}
@@ -409,7 +415,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
                       justifyContent: 'center',
                     }}
                   >
-                    ✕
+                    <Close size={16} />
                   </button>
                 </div>
 
@@ -446,7 +452,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
                       </div>
                     ))}
                   </div>
-                  <p style={{ margin: '10px 0 0', fontSize: '11px', color: '#b0b8c1', lineHeight: '1.5' }}>
+                  <p style={{ margin: '10px 0 0', fontSize: '12px', color: '#b0b8c1', lineHeight: '1.5' }}>
                     * 경찰청 통계 기반 밀도분석으로, 실제 위험도와 다를 수 있습니다.
                   </p>
                 </div>
@@ -466,7 +472,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
                     href="https://www.safemap.go.kr"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: '13px', color: '#0064ff', textDecoration: 'none' }}
+                    style={{ fontSize: '13px', color: '#3D4FA3', textDecoration: 'none' }}
                   >
                     https://www.safemap.go.kr
                   </a>
@@ -642,7 +648,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
-                ✕
+                <Close size={16} />
               </button>
             </div>
 
@@ -676,12 +682,12 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
                   {/* 출처 + 날짜 */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                     <span style={{
-                      fontSize: '11px', fontWeight: '600', color: '#0064ff',
+                      fontSize: '12px', fontWeight: '600', color: '#3D4FA3',
                       backgroundColor: '#eef4ff', padding: '2px 8px', borderRadius: '10px',
                     }}>
                       {item.originallink?.split('/')[2]?.replace('www.', '') ?? '뉴스'}
                     </span>
-                    <span style={{ fontSize: '11px', color: '#b0b8c1' }}>
+                    <span style={{ fontSize: '12px', color: '#b0b8c1' }}>
                       {formatDate(item.pubDate)}
                     </span>
                   </div>

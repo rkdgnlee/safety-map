@@ -27,7 +27,9 @@ export const VERDICT_TONE: Record<Verdict, { label: string; dot: string; text: s
   bad: { label: '비추천', dot: '#F04452', text: '#d22030', bg: '#ffeeee', ring: '#ffb3b9' },
 };
 
-export const FONT_FAMILY = '"Pretendard", -apple-system, sans-serif';
+// 이모지는 Tossface 로 렌더한다. Tossface 는 키캡 이모지용 숫자 글리프도 갖고 있어 시스템 폰트 뒤에 둔다
+// (숫자·한글은 시스템 폰트, 시스템 폰트에 없는 이모지만 Tossface 로 넘어간다)
+export const FONT_FAMILY = '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, "Tossface", sans-serif';
 
 export const SCREEN_STYLE = {
   minHeight: '100vh',
@@ -35,5 +37,6 @@ export const SCREEN_STYLE = {
   backgroundColor: COLORS.bg,
   color: COLORS.text,
   fontFamily: FONT_FAMILY,
-  padding: '32px 20px calc(32px + env(safe-area-inset-bottom))',
+  // 상단은 토스 내비게이션 바 바로 아래부터 시작한다
+  padding: '16px 20px calc(32px + env(safe-area-inset-bottom))',
 } as const;

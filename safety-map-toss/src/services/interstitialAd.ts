@@ -32,6 +32,11 @@ export function preloadInterstitial() {
   }
 }
 
+// 지금 바로 보여줄 수 있는 광고가 있는지 — 없으면 안내 시트도 띄우지 않는다
+export function isInterstitialReady(): boolean {
+  return IS_DEV || isLoaded;
+}
+
 export function showInterstitial(onDone: () => void = () => {}) {
   if (IS_DEV || !isLoaded || isShowing) {
     onDone();

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Place } from '../constants/categories';
 import { COLORS, FONT_FAMILY } from '../constants/theme';
+import { Close } from './icons';
 import { useAddressSearch } from '../hooks/useAddressSearch';
 import { usePlaceSearch, type PlaceResult } from '../hooks/usePlaceSearch';
 import { preferenceActions, usePreferences } from '../hooks/usePreferences';
@@ -93,7 +94,7 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700 }}>{title}</h2>
         <button onClick={onClose} aria-label="검색 닫기" style={iconButtonStyle}>
-          ✕
+          <Close size={18} />
         </button>
       </div>
 
@@ -132,7 +133,7 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
           borderRadius: '22px',
           backgroundColor: COLORS.primarySoft,
           color: COLORS.primary,
-          fontSize: '14px',
+          fontSize: '15px',
           fontWeight: 600,
           cursor: 'pointer',
         }}
@@ -151,7 +152,7 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
           <>
             <p style={sectionLabelStyle}>최근 검색</p>
             {searchHistory.length === 0 && (
-              <p style={{ fontSize: '14px', color: COLORS.textHint }}>최근 검색한 장소가 없어요</p>
+              <p style={{ fontSize: '15px', color: COLORS.textHint }}>최근 검색한 장소가 없어요</p>
             )}
             {searchHistory.map((place) => (
               <div key={`${place.label}-${place.lat}`} style={rowStyle}>
@@ -163,7 +164,7 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
                   aria-label={`${place.label} 검색 기록 삭제`}
                   style={iconButtonStyle}
                 >
-                  ✕
+                  <Close size={18} />
                 </button>
               </div>
             ))}
@@ -187,13 +188,13 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
             ))}
             {results.length > 0 && <p style={{ ...sectionLabelStyle, marginTop: places.length > 0 ? '20px' : 0 }}>주소</p>}
             {(loading || placesLoading) && results.length === 0 && places.length === 0 && (
-              <p style={{ fontSize: '14px', color: COLORS.textHint }}>검색하고 있어요</p>
+              <p style={{ fontSize: '15px', color: COLORS.textHint }}>검색하고 있어요</p>
             )}
             {!loading && !placesLoading && error && places.length === 0 && (
-              <p style={{ fontSize: '14px', color: '#d22030' }}>{error}</p>
+              <p style={{ fontSize: '15px', color: '#d22030' }}>{error}</p>
             )}
             {!loading && !placesLoading && !error && results.length === 0 && places.length === 0 && (
-              <p style={{ fontSize: '14px', color: COLORS.textHint }}>검색 결과가 없어요. 장소 이름이나 동 이름으로 검색해 보세요.</p>
+              <p style={{ fontSize: '15px', color: COLORS.textHint }}>검색 결과가 없어요. 장소 이름이나 동 이름으로 검색해 보세요.</p>
             )}
             {results.map((item, idx) => (
               <button

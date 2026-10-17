@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import PlaceSearchSheet from '../components/PlaceSearchSheet';
+import { ChevronRight, Close } from '../components/icons';
 import { CHANGELOG } from '../constants/changelog';
 import { getCategory } from '../constants/categories';
 import { COLORS, FONT_FAMILY, SCREEN_STYLE } from '../constants/theme';
@@ -8,7 +9,6 @@ import { preferenceActions, usePreferences } from '../hooks/usePreferences';
 type InfoSection = 'sources' | 'guide' | 'changelog';
 
 interface SettingsScreenProps {
-  onBack: () => void;
   initialInfo?: InfoSection; // 홈 '새로워졌어요'에서 들어오면 업데이트 내역을 펼친 채로
 }
 
@@ -31,7 +31,7 @@ const VERDICT_GUIDE = [
   ['비추천', '기상특보가 발효됐거나 여러 항목이 위험 기준을 넘었어요'],
 ];
 
-export default function SettingsScreen({ onBack, initialInfo }: SettingsScreenProps) {
+export default function SettingsScreen({ initialInfo }: SettingsScreenProps) {
   const prefs = usePreferences();
   const [confirm, setConfirm] = useState<ConfirmTarget>(null);
   const [isPickingDefault, setIsPickingDefault] = useState(false);
@@ -45,13 +45,7 @@ export default function SettingsScreen({ onBack, initialInfo }: SettingsScreenPr
 
   return (
     <main style={SCREEN_STYLE}>
-      <button
-        onClick={onBack}
-        style={{ minHeight: '44px', padding: 0, border: 'none', background: 'none', color: COLORS.textSub, fontSize: '15px', cursor: 'pointer' }}
-      >
-        ‹ 홈으로
-      </button>
-      <h1 style={{ margin: '20px 0 0', fontSize: '28px', fontWeight: 700, letterSpacing: '-1px' }}>더보기</h1>
+      <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700, letterSpacing: '-1px' }}>더보기</h1>
 
       <Section title="위치">
         <Row
@@ -91,7 +85,7 @@ export default function SettingsScreen({ onBack, initialInfo }: SettingsScreenPr
                 aria-label={`${place.label} 검색 기록 삭제`}
                 style={{ width: '44px', height: '44px', border: 'none', background: 'none', color: COLORS.textDisabled, fontSize: '16px', cursor: 'pointer' }}
               >
-                ✕
+                <Close size={16} />
               </button>
             }
           />
@@ -143,8 +137,8 @@ export default function SettingsScreen({ onBack, initialInfo }: SettingsScreenPr
           <div style={infoBoxStyle}>
             {CHANGELOG.map((entry, index) => (
               <div key={entry.id} style={{ marginTop: index === 0 ? 0 : '20px' }}>
-                <p style={{ margin: 0, fontSize: '12px', color: COLORS.textHint }}>{entry.date}</p>
-                <p style={{ margin: '2px 0 6px', fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{entry.title}</p>
+                <p style={{ margin: 0, fontSize: '13px', color: COLORS.textHint }}>{entry.date}</p>
+                <p style={{ margin: '2px 0 6px', fontSize: '15px', fontWeight: 700, color: COLORS.text }}>{entry.title}</p>
                 {entry.items.map((item) => (
                   <p key={item} style={{ margin: '0 0 4px' }}>
                     · {item}
@@ -241,9 +235,9 @@ function Row({
     >
       <div style={{ minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: '15px', fontWeight: 500, color: muted ? COLORS.textDisabled : COLORS.text }}>{title}</p>
-        {detail && <p style={{ margin: '4px 0 0', fontSize: '12px', color: COLORS.textHint }}>{detail}</p>}
+        {detail && <p style={{ margin: '4px 0 0', fontSize: '13px', color: COLORS.textHint }}>{detail}</p>}
       </div>
-      {action ?? (onClick && <span style={{ fontSize: '18px', color: COLORS.textDisabled }}>›</span>)}
+      {action ?? (onClick && <span style={{ display: 'flex', color: COLORS.textDisabled }}><ChevronRight size={18} /></span>)}
     </div>
   );
 }
@@ -331,7 +325,7 @@ function ConfirmSheet({
         }}
       >
         <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: COLORS.text }}>{title}</h3>
-        <p style={{ margin: '8px 0 24px', fontSize: '14px', color: COLORS.textMuted }}>{description}</p>
+        <p style={{ margin: '8px 0 24px', fontSize: '15px', color: COLORS.textMuted }}>{description}</p>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={onCancel} style={{ ...sheetButtonStyle, backgroundColor: COLORS.surfaceStrong, color: COLORS.textSub }}>
             취소
