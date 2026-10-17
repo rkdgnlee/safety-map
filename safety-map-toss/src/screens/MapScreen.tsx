@@ -472,7 +472,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
                     href="https://www.safemap.go.kr"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: '13px', color: '#3D4FA3', textDecoration: 'none' }}
+                    style={{ fontSize: '13px', color: '#2F7058', textDecoration: 'none' }}
                   >
                     https://www.safemap.go.kr
                   </a>
@@ -682,7 +682,7 @@ export default function MapScreen({ location, addressLabel, initialTab = 'crime'
                   {/* 출처 + 날짜 */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                     <span style={{
-                      fontSize: '12px', fontWeight: '600', color: '#3D4FA3',
+                      fontSize: '12px', fontWeight: '600', color: '#2F7058',
                       backgroundColor: '#eef4ff', padding: '2px 8px', borderRadius: '10px',
                     }}>
                       {item.originallink?.split('/')[2]?.replace('www.', '') ?? '뉴스'}

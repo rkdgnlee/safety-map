@@ -330,7 +330,7 @@ function ConfirmSheet({
           <button onClick={onCancel} style={{ ...sheetButtonStyle, backgroundColor: COLORS.surfaceStrong, color: COLORS.textSub }}>
             취소
           </button>
-          <button onClick={onConfirm} style={{ ...sheetButtonStyle, backgroundColor: COLORS.primary, color: '#ffffff' }}>
+          <button onClick={onConfirm} style={{ ...sheetButtonStyle, backgroundColor: COLORS.primaryButton, color: '#ffffff' }}>
             {confirmLabel}
           </button>
         </div>
@@ -344,7 +344,7 @@ const smallTextButtonStyle = {
   padding: '0 4px',
   border: 'none',
   background: 'none',
-  color: COLORS.primary,
+  color: COLORS.primaryStrong,
   fontSize: '13px',
   cursor: 'pointer',
 } as const;

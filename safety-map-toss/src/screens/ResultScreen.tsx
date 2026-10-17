@@ -122,10 +122,10 @@ export default function ResultScreen({
                 flexShrink: 0,
                 minHeight: '44px',
                 padding: '0 14px',
-                border: 'none',
+                border: active ? `1.5px solid ${COLORS.primaryLine}` : '1.5px solid transparent',
                 borderRadius: '22px',
-                backgroundColor: active ? COLORS.primary : COLORS.surfaceStrong,
-                color: active ? '#ffffff' : COLORS.textSub,
+                backgroundColor: active ? COLORS.primarySoft : COLORS.surfaceStrong,
+                color: active ? COLORS.primaryStrong : COLORS.textSub,
                 fontSize: '15px',
                 fontWeight: active ? 600 : 500,
                 cursor: 'pointer',
@@ -164,7 +164,7 @@ export default function ResultScreen({
           {state.status === 'done' ? `${formatClock(state.at)} 기준` : '불러오는 중'}
           {state.status === 'done' && state.report.regionLabel && ` · ${state.report.regionLabel}`} · {category.emoji} {category.name}
           {state.status === 'done' && state.report.isMock && (
-            <span style={{ marginLeft: '6px', color: COLORS.primary }}>· 예시 데이터</span>
+            <span style={{ marginLeft: '6px', color: COLORS.primaryStrong }}>· 예시 데이터</span>
           )}
         </p>
       </header>
@@ -177,7 +177,7 @@ export default function ResultScreen({
           <p style={{ margin: '8px 0 16px', fontSize: '13px', color: COLORS.textMuted }}>네트워크를 확인하고 다시 시도해 주세요</p>
           <button
             onClick={() => setRetryKey((k) => k + 1)}
-            style={{ height: '44px', padding: '0 20px', border: 'none', borderRadius: '12px', backgroundColor: COLORS.primary, color: '#fff', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
+            style={{ height: '44px', padding: '0 20px', border: 'none', borderRadius: '12px', backgroundColor: COLORS.primaryButton, color: '#fff', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
           >
             다시 시도
           </button>
@@ -264,7 +264,7 @@ function VerdictCard({ report }: { report: CategoryReport }) {
         backgroundColor: report.neutral ? COLORS.primarySoft : tone.bg,
       }}
     >
-      <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: report.neutral ? COLORS.primary : tone.text }}>
+      <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: report.neutral ? COLORS.primaryStrong : tone.text }}>
         {report.verdictText}
       </p>
       <h2 style={{ margin: '8px 0 0', fontSize: '19px', fontWeight: 700, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
@@ -394,7 +394,7 @@ function HospitalCard({ hospital }: { hospital: ApiHospital }) {
             padding: '0 14px',
             borderRadius: '10px',
             backgroundColor: COLORS.bg,
-            color: COLORS.primary,
+            color: COLORS.primaryStrong,
             fontSize: '15px',
             fontWeight: 600,
             textDecoration: 'none',
@@ -470,7 +470,7 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
               {detail.tide.events.map((e) => {
                 return (
                   <div key={`${e.date}-${e.time}`} style={{ padding: '12px', borderRadius: '12px', backgroundColor: COLORS.bg }}>
-                    <span style={{ fontSize: '13px', color: e.type === '만조' ? COLORS.primary : COLORS.textMuted }}>
+                    <span style={{ fontSize: '13px', color: e.type === '만조' ? COLORS.primaryStrong : COLORS.textMuted }}>
                       {e.type === '만조' ? '🌊 만조' : '🏖️ 간조'}
                       {e.date !== today && ' · 내일'}
                     </span>

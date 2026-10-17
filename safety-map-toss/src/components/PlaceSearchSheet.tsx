@@ -132,7 +132,7 @@ export default function PlaceSearchSheet({ title = '어디 가세요?', onSelect
           border: 'none',
           borderRadius: '22px',
           backgroundColor: COLORS.primarySoft,
-          color: COLORS.primary,
+          color: COLORS.primaryStrong,
           fontSize: '15px',
           fontWeight: 600,
           cursor: 'pointer',

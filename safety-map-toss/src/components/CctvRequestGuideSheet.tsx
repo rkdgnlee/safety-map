@@ -119,7 +119,7 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
                 href={`tel:${cctv.telno}`}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  fontSize: '13px', fontWeight: '600', color: '#3D4FA3',
+                  fontSize: '13px', fontWeight: '600', color: '#2F7058',
                   textDecoration: 'none',
                   backgroundColor: '#eef4ff', padding: '6px 12px', borderRadius: '12px',
                 }}
@@ -232,10 +232,10 @@ export default function CctvRequestGuideSheet({ cctv, onClose }: CctvRequestGuid
             onClick={handleOpenPortal}
             style={{
               width: '100%', padding: '18px',
-              backgroundColor: '#3D4FA3', color: '#ffffff',
+              backgroundColor: '#333D4B', color: '#ffffff',
               border: 'none', borderRadius: '16px',
               fontSize: '16px', fontWeight: 'bold', cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(61,79,163,0.25)',
+              boxShadow: '0 4px 12px rgba(51,61,75,0.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}
           >

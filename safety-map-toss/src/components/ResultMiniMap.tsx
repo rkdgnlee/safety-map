@@ -128,10 +128,10 @@ export default function ResultMiniMap({ center, layers, onOpenFullMap }: ResultM
                 style={{
                   minHeight: '36px',
                   padding: '0 12px',
-                  border: 'none',
+                  border: active ? `1.5px solid ${COLORS.primaryLine}` : '1.5px solid transparent',
                   borderRadius: '18px',
-                  backgroundColor: active ? COLORS.primary : COLORS.bg,
-                  color: active ? '#ffffff' : COLORS.textSub,
+                  backgroundColor: active ? COLORS.primarySoft : COLORS.bg,
+                  color: active ? COLORS.primaryStrong : COLORS.textSub,
                   fontSize: '13px',
                   fontWeight: active ? 600 : 500,
                   cursor: 'pointer',
@@ -168,7 +168,7 @@ export default function ResultMiniMap({ center, layers, onOpenFullMap }: ResultM
               padding: '6px 10px',
               borderRadius: '14px',
               backgroundColor: 'rgba(255,255,255,0.92)',
-              color: COLORS.primary,
+              color: COLORS.primaryStrong,
               fontSize: '13px',
               fontWeight: 600,
             }}

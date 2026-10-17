@@ -26,7 +26,7 @@ export const NATURAL_HAZARD_LAYERS: Record<string, NaturalHazardLayer> = {
     id: 'riverFlood',
     label: '하천 홍수위험',
     endpoints: ['IF_0089_WMS', 'IF_0100_WMS'], // 국가하천 + 지방하천
-    color: '#3D4FA3',
+    color: '#4F7FC2',
   },
 };
 

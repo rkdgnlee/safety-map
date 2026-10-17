@@ -1,8 +1,11 @@
 // 앱 전역 색상. 메인 컬러는 apps-in-toss.config.ts 의 brand.primaryColor 와 맞춘다.
 export const COLORS = {
-  primary: '#3D4FA3',
-  primaryStrong: '#2A3778',
-  primarySoft: '#EEF0FA',
+  // 세이지 민트 포인트 + 차콜 버튼 — 화면은 연하게, 색은 넓은 면과 선에만 쓴다
+  primary: '#3A7D64', // 아이콘·토글·지도 원·막대 (흰 배경 대비 4.9:1)
+  primaryLine: '#A8D8C2', // 검색창·선택된 칩 테두리 (장식 선, 연한 배경과 함께 쓴다)
+  primaryStrong: '#2F7058', // 세이지 색 글자 (흰 배경 5.9:1, 연한 배경 5.4:1)
+  primarySoft: '#EEF8F3', // 검색창·선택된 칩·알약·요약 카드 배경
+  primaryButton: '#333D4B', // 흰 글자 버튼 채움 — 차콜 (11:1)
 
   text: '#191f28',
   textSub: '#4e5968',

@@ -53,7 +53,7 @@ export default function AdNoticeHost() {
           <button onClick={closeAdNotice} style={{ ...buttonStyle, backgroundColor: COLORS.surfaceStrong, color: COLORS.textSub }}>
             취소
           </button>
-          <button onClick={handleConfirm} style={{ ...buttonStyle, flex: 2, backgroundColor: COLORS.primary, color: '#ffffff' }}>
+          <button onClick={handleConfirm} style={{ ...buttonStyle, flex: 2, backgroundColor: COLORS.primaryButton, color: '#ffffff' }}>
             {request.confirmLabel}
           </button>
         </div>

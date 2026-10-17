@@ -5,7 +5,7 @@ export default defineConfig({
 
   brand: {
     // 화면에 노출될 앱의 기본 색상으로 바꿔주세요.
-    primaryColor: "#3D4FA3"
+    primaryColor: "#3A7D64"
   },
 
   permissions: [],
