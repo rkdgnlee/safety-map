@@ -110,11 +110,21 @@ export default function HomeScreen({
         </button>
       </div>
 
-      {/* 2. 검색 — 첫 화면의 주인공 */}
+      {/* 2. 앱 소개 한 줄 — 무슨 앱인지 바로 알 수 있게 */}
+      <section style={{ marginTop: '16px' }}>
+        <p style={{ margin: 0, fontSize: '15px', fontWeight: 500, color: COLORS.textHint }}>지금 거기 가도 괜찮을까?</p>
+        <h1 style={{ margin: '4px 0 0', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.4 }}>
+          가려는 곳의 날씨와
+          <br />
+          안전 정보를 한눈에 봐요
+        </h1>
+      </section>
+
+      {/* 3. 검색 — 첫 화면의 주인공 */}
       <button
         onClick={onOpenSearch}
         style={{
-          marginTop: '20px',
+          marginTop: '16px',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
@@ -136,7 +146,7 @@ export default function HomeScreen({
         <span>어디 가세요? 산, 캠핑장, 낚시터, 동네</span>
       </button>
 
-      {/* 3. 최근 검색 */}
+      {/* 4. 최근 검색 */}
       {searchHistory.length > 0 && (
         <div className="no-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', margin: '12px -20px 0', padding: '0 20px' }}>
           {searchHistory.map((item) => (
@@ -161,12 +171,12 @@ export default function HomeScreen({
         </div>
       )}
 
-      {/* 4. 배너 광고 — 배너 컨테이너는 화면 너비와 같아야 해서 좌우 여백을 상쇄한다 */}
+      {/* 5. 배너 광고 — 배너 컨테이너는 화면 너비와 같아야 해서 좌우 여백을 상쇄한다 */}
       <div style={{ margin: '24px -20px 0' }}>
         <BannerAdComponent adGroupId={BANNER_AD_GROUP_ID} variant="card" />
       </div>
 
-      {/* 5. 카테고리 */}
+      {/* 6. 카테고리 */}
       <section style={{ marginTop: '24px' }}>
         <h2 style={{ margin: '0 0 12px', fontSize: '20px', fontWeight: 700 }}>무엇을 하러 가세요?</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -208,30 +218,27 @@ export default function HomeScreen({
               </button>
             );
           })}
-          {UPCOMING_CATEGORIES.map((item) => (
-            <div key={item.name} style={{ ...cardStyle, backgroundColor: COLORS.surface, color: COLORS.textDisabled }}>
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '24px',
-                  backgroundColor: COLORS.surfaceStrong,
-                  fontSize: '26px',
-                  filter: 'grayscale(1)',
-                }}
-              >
-                {item.emoji}
-              </span>
-              <span>
-                <strong style={{ display: 'block', fontSize: '17px', fontWeight: 700 }}>{item.name}</strong>
-                <span style={{ display: 'block', marginTop: '4px', fontSize: '13px' }}>곧 열려요</span>
-              </span>
-            </div>
-          ))}
         </div>
+        {UPCOMING_CATEGORIES.map((item) => (
+          <div
+            key={item.name}
+            style={{
+              marginTop: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              height: '60px',
+              padding: '0 16px',
+              borderRadius: '18px',
+              backgroundColor: COLORS.surface,
+              color: COLORS.textDisabled,
+            }}
+          >
+            <span style={{ fontSize: '24px', filter: 'grayscale(1)' }}>{item.emoji}</span>
+            <strong style={{ fontSize: '16px', fontWeight: 700 }}>{item.name}</strong>
+            <span style={{ marginLeft: 'auto', fontSize: '14px' }}>곧 열려요</span>
+          </div>
+        ))}
       </section>
     </main>
   );

@@ -221,7 +221,7 @@ function ReportBody({ report, now, center, onOpenMap }: { report: CategoryReport
 
       {report.timeline && (
         <section style={{ marginTop: '32px' }}>
-          <h2 style={sectionTitleStyle}>앞으로 6시간</h2>
+          <h2 style={sectionTitleStyle}>{report.timelineTitle ?? '앞으로 6시간'}</h2>
           <Timeline {...report.timeline} />
         </section>
       )}
@@ -516,6 +516,15 @@ function DetailSection({ detail, now, center, onOpenMap }: { detail: CategoryDet
         </section>
       );
     }
+    case 'walk':
+      return (
+        <section style={{ ...panelStyle, marginTop: '24px' }}>
+          <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.6, color: COLORS.textSub }}>
+            더보기에서 <strong style={{ color: COLORS.text }}>기본 위치</strong>를 회사로 정해 두면, 앱을 열 때마다 회사 기준
+            점심 날씨를 바로 볼 수 있어요.
+          </p>
+        </section>
+      );
     case 'night':
       return (
         <section style={{ ...panelStyle, marginTop: '32px' }}>

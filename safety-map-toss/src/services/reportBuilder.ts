@@ -14,7 +14,7 @@ import type {
   MetricCard,
 } from '../types/report';
 
-type LiveCategory = Exclude<CategoryId, 'moving'>;
+type LiveCategory = Exclude<CategoryId, 'moving' | 'walk'>;
 
 const THRESHOLDS: Record<LiveCategory, { windCaution: number; windBad: number }> = {
   hiking: { windCaution: 10, windBad: 14 }, // 능선·정상 기준
@@ -42,6 +42,7 @@ const SOURCE_LABEL: Record<string, string> = {
   tide: '물때',
   fishing: '바다낚시지수',
   region: '지역 확인',
+  lunch: '점심시간 예보',
   crime: '범죄주의구간',
   flood: '하천 범람',
   landslide: '산사태 위험',
@@ -162,7 +163,7 @@ function weatherReasons(category: LiveCategory, api: ApiReport, reasons: Reason[
   }
 }
 
-function commonReasons(category: LiveCategory, api: ApiReport, reasons: Reason[], passed: string[]) {
+function commonReasons(category: CategoryId, api: ApiReport, reasons: Reason[], passed: string[]) {
   if (api.warnings.length === 0) {
     if (!api.errors.includes('warnings')) passed.push('발효 중인 기상특보 없음');
   }
@@ -234,6 +235,7 @@ const SOURCES: Record<LiveCategory, string[]> = {
 
 export function buildCategoryReport(category: CategoryId, api: ApiReport, now: Date): CategoryReport {
   if (category === 'moving') return buildMovingReport(api);
+  if (category === 'walk') return buildWalkReport(api);
 
   const reasons: Reason[] = [];
   const passed: string[] = [];
@@ -465,6 +467,141 @@ function buildMovingReport(api: ApiReport): CategoryReport {
     detail: { kind: 'moving', items },
     hospital: null, // 카드 목록에 이미 포함
     sources: ['생활안전정보 범죄주의구간·산사태 위험·하천 홍수위험', '국립중앙의료원'],
+    isMock: false,
+    regionLabel: regionLabelOf(api),
+  };
+}
+
+// ── 점심시간 산책: 점심(11~13시) 단기예보로 한 줄 결론 ──────────────
+const WALK = {
+  popCaution: 30, // 강수확률 30% 이상이면 우산 챙기기
+  popBad: 60,
+  windCaution: 7,
+  windBad: 10,
+  hot: 31,
+  veryHot: 33,
+  cold: 0,
+  veryCold: -5,
+};
+
+function walkSlotVerdict(slot: NonNullable<ApiReport['lunch']>['slots'][number]): Verdict {
+  let v: Verdict = 'good';
+  const pop = slot.pop ?? 0;
+  const wind = slot.wind ?? 0;
+  const temp = slot.temp ?? 15;
+  if (slot.pty > 0 || pop >= WALK.popBad || wind >= WALK.windBad || temp >= WALK.veryHot || temp <= WALK.veryCold) v = 'bad';
+  else if (pop >= WALK.popCaution || wind >= WALK.windCaution || temp >= WALK.hot || temp <= WALK.cold) v = 'caution';
+  return v;
+}
+
+function buildWalkReport(api: ApiReport): CategoryReport {
+  const lunch = api.lunch ?? null;
+  const reasons: Reason[] = [];
+  const passed: string[] = [];
+  const day = lunch?.isTomorrow ? '내일' : '오늘';
+  const source = '기상청 단기예보';
+  let summary = ''; // '11~14시 · 22~24°C'
+
+  if (lunch && lunch.slots.length > 0) {
+    const slots = lunch.slots;
+    const range = `${slots[0].hour}~${slots[slots.length - 1].hour + 1}시`;
+    const maxPop = Math.max(...slots.map((s) => s.pop ?? 0));
+    const raining = slots.some((s) => s.pty > 0);
+    const maxWind = Math.max(...slots.map((s) => s.wind ?? 0));
+    const temps = slots.map((s) => s.temp).filter((t): t is number => t !== null);
+    const maxTemp = Math.max(...temps);
+    const minTemp = Math.min(...temps);
+    summary = `${range} · ${minTemp === maxTemp ? minTemp : `${minTemp}~${maxTemp}`}°C`;
+
+    if (raining || maxPop >= WALK.popCaution) {
+      reasons.push({
+        icon: '☔',
+        title: raining || maxPop >= WALK.popBad ? '비가 올 수 있어요' : '비가 올 수도 있어요',
+        value: `${range} 강수확률 최대 ${maxPop}%`,
+        criterion: `${WALK.popCaution}% 이상이면 우산을 챙기세요 · ${WALK.popBad}% 이상은 실내 추천`,
+        source,
+        verdict: raining || maxPop >= WALK.popBad ? 'bad' : 'caution',
+      });
+    } else {
+      passed.push(`비 소식 없음 (강수확률 최대 ${maxPop}%)`);
+    }
+
+    if (maxWind >= WALK.windCaution) {
+      reasons.push({
+        icon: '🌬️',
+        title: '바람이 많이 불어요',
+        value: `최대 ${maxWind}m/s`,
+        criterion: `${WALK.windCaution}m/s 이상 주의 · ${WALK.windBad}m/s 이상 비추천`,
+        source,
+        verdict: maxWind >= WALK.windBad ? 'bad' : 'caution',
+      });
+    } else {
+      passed.push(`바람 약함 (최대 ${maxWind}m/s)`);
+    }
+
+    if (maxTemp >= WALK.hot) {
+      reasons.push({
+        icon: '🥵',
+        title: '더워요',
+        value: `최고 ${maxTemp}°C`,
+        criterion: `${WALK.hot}°C 이상 주의 · ${WALK.veryHot}°C 이상 비추천`,
+        source,
+        verdict: maxTemp >= WALK.veryHot ? 'bad' : 'caution',
+      });
+    } else if (minTemp <= WALK.cold) {
+      reasons.push({
+        icon: '🥶',
+        title: '추워요',
+        value: `최저 ${minTemp}°C`,
+        criterion: `${WALK.cold}°C 이하 주의 · ${WALK.veryCold}°C 이하 비추천`,
+        source,
+        verdict: minTemp <= WALK.veryCold ? 'bad' : 'caution',
+      });
+    } else {
+      passed.push(`기온 ${minTemp === maxTemp ? `${minTemp}` : `${minTemp}~${maxTemp}`}°C`);
+    }
+  }
+
+  // 기상특보·미세먼지는 다른 카테고리와 같은 기준
+  commonReasons('walk', api, reasons, passed);
+  reasons.sort((a, b) => rank[b.verdict] - rank[a.verdict]);
+  const verdict = reasons.reduce<Verdict>((v, r) => worse(v, r.verdict), 'good');
+
+  const timeline: CategoryReport['timeline'] = lunch
+    ? {
+        metricLabel: '강수확률이 30% 이상이면 강수확률, 아니면 풍속',
+        markers: [],
+        slots: lunch.slots.map((slot) => ({
+          label: `${slot.hour}시`,
+          date: lunch.date,
+          hour: slot.hour,
+          icon: weatherIcon({ time: '', temp: slot.temp, sky: slot.sky, pty: slot.pty, rain1h: slot.rain, wind: slot.wind, humidity: null, lightning: 0 }, false),
+          temp: slot.temp === null ? null : Math.round(slot.temp),
+          metric: (slot.pop ?? 0) >= WALK.popCaution ? `비 ${slot.pop}%` : slot.wind === null ? '-' : `${slot.wind}m/s`,
+          verdict: walkSlotVerdict(slot),
+        })),
+      }
+    : undefined;
+
+  const headline = !lunch
+    ? '점심시간 예보를 불러오지 못했어요\n잠시 후 다시 확인해 주세요'
+    : reasons.length === 0
+      ? `${day} 점심, 산책하기 좋은 날씨예요\n${summary} · 비 소식 없고 바람 약해요`
+      : `${day} 점심, ${reasons[0].title}\n${reasons[0].value}`;
+
+  return {
+    verdict,
+    neutral: false,
+    verdictText: verdict === 'good' ? '산책하기 좋아요' : `${VERDICT_TONE[verdict].label} · 확인할 점 ${reasons.length}개`,
+    headline,
+    timeline,
+    timelineTitle: `${day} 점심시간`,
+    reasons,
+    passed,
+    unavailable: api.errors.map((e) => SOURCE_LABEL[e] ?? e),
+    detail: { kind: 'walk', isTomorrow: lunch?.isTomorrow ?? false },
+    hospital: null,
+    sources: ['기상청 단기예보·기상특보', '에어코리아'],
     isMock: false,
     regionLabel: regionLabelOf(api),
   };

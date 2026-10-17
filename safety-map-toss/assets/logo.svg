@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <!-- 나들이 레이더 로고 시안: 인디고 배경 + 레이더 파동 + 지도 핀 (자체 제작, 외부 자산 미사용) -->
+  <rect width="600" height="600" fill="#3D4FA3"/>
+  <g transform="translate(0 -30)">
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round">
+    <circle cx="300" cy="330" r="210" stroke-width="14" opacity="0.18"/>
+    <circle cx="300" cy="330" r="150" stroke-width="16" opacity="0.35"/>
+    <circle cx="300" cy="330" r="92" stroke-width="18" opacity="0.6"/>
+  </g>
+  <!-- 핀: 끝점이 파동 중심(300,330)에 오도록 -->
+  <path d="M300 330 C 300 330 222 250 222 196 A 78 78 0 1 1 378 196 C 378 250 300 330 300 330 Z" fill="#FFFFFF"/>
+  <circle cx="300" cy="196" r="30" fill="#3D4FA3"/>
+  </g>
+</svg>

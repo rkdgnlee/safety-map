@@ -93,6 +93,22 @@ export interface ApiLandslideSample {
   worstGrade: number | null; // 1(가장 위험) ~ 5
 }
 
+export interface ApiLunchSlot {
+  hour: number;
+  temp: number | null;
+  pop: number | null; // 강수확률 %
+  pty: number;
+  rain: number;
+  wind: number | null;
+  sky: number | null;
+}
+
+export interface ApiLunchForecast {
+  date: string;
+  isTomorrow: boolean; // 오늘 점심이 지났으면 내일 점심
+  slots: ApiLunchSlot[];
+}
+
 export interface ApiReport {
   category: string;
   generatedAt: string;
@@ -110,6 +126,7 @@ export interface ApiReport {
   crime: ApiCrimeSample | null;
   flood: ApiFloodSample | null;
   landslide: ApiLandslideSample | null;
+  lunch?: ApiLunchForecast | null;
   errors: string[];
 }
 
@@ -152,7 +169,8 @@ export type CategoryDetail =
   | { kind: 'camping'; nightLow: number | null; campsites: ApiCampsite[]; fire: ApiFireRisk | null }
   | { kind: 'fishing'; tide: ApiTide | null; fishing: ApiFishing | null }
   | { kind: 'night'; sunset: string | null; crime: ApiCrimeSample | null }
-  | { kind: 'moving'; items: MetricCard[] };
+  | { kind: 'moving'; items: MetricCard[] }
+  | { kind: 'walk'; isTomorrow: boolean };
 
 export interface CategoryReport {
   verdict: Verdict;
@@ -160,6 +178,7 @@ export interface CategoryReport {
   verdictText: string;
   headline: string;
   timeline?: { metricLabel: string; slots: TimelineSlot[]; markers: TimelineMarker[] };
+  timelineTitle?: string; // 기본 '앞으로 6시간'
   reasons: Reason[];
   passed: string[];
   unavailable: string[]; // 불러오지 못한 데이터

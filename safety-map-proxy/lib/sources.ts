@@ -112,7 +112,8 @@ export async function getWeather(lat: number, lng: number, now: Date): Promise<W
 // ── 단기예보: 앞으로 12시간 최저기온 (캠핑 밤 기온) ──────────────
 const VILAGE_BASE_HOURS = [2, 5, 8, 11, 14, 17, 20, 23];
 
-export async function getNightLow(lat: number, lng: number, now: Date): Promise<number | null> {
+// 단기예보 원본 (3일치 1시간 간격). 캠핑 밤 기온·점심시간 산책 예보가 같이 쓴다
+async function getVilageItems(lat: number, lng: number, now: Date): Promise<any[]> {
   const { nx, ny } = toKmaGrid(lat, lng);
   const p = kstParts(new Date(now.getTime() - 15 * MIN)); // 발표 후 약 10분 뒤 제공
   let baseHour = [...VILAGE_BASE_HOURS].reverse().find((h) => h <= p.hour);
@@ -126,7 +127,7 @@ export async function getNightLow(lat: number, lng: number, now: Date): Promise<
   const data = await cached(`vilage:${nx},${ny},${baseDate}${base_time}`, 30 * MIN, () =>
     fetchPublicJson('/1360000/VilageFcstInfoService_2.0/getVilageFcst', {
       pageNo: 1,
-      numOfRows: 300,
+      numOfRows: 1000, // 내일 점심까지 닿도록 넉넉히 (카테고리 12종 × 약 40시간)
       dataType: 'JSON',
       base_date: baseDate,
       base_time,
@@ -134,8 +135,13 @@ export async function getNightLow(lat: number, lng: number, now: Date): Promise<
       ny,
     }),
   );
+  return asArray<any>(data?.response?.body?.items?.item);
+}
+
+export async function getNightLow(lat: number, lng: number, now: Date): Promise<number | null> {
+  const items = await getVilageItems(lat, lng, now);
   const until = now.getTime() + 12 * 60 * MIN;
-  const temps = asArray<any>(data?.response?.body?.items?.item)
+  const temps = items
     .filter((i) => i.category === 'TMP')
     .filter((i) => {
       const t = new Date(kstToIso(i.fcstDate, i.fcstTime)).getTime();
@@ -144,6 +150,50 @@ export async function getNightLow(lat: number, lng: number, now: Date): Promise<
     .map((i) => parseFloat(i.fcstValue))
     .filter(Number.isFinite);
   return temps.length ? Math.min(...temps) : null;
+}
+
+// ── 점심시간 산책: 점심(11~13시) 예보 ───────────────────────────
+export interface LunchSlot {
+  hour: number;
+  temp: number | null;
+  pop: number | null; // 강수확률 %
+  pty: number; // 강수형태 0 없음
+  rain: number; // 1시간 강수량 mm
+  wind: number | null;
+  sky: number | null;
+}
+
+export interface LunchForecast {
+  date: string; // YYYY-MM-DD
+  isTomorrow: boolean; // 오늘 점심이 지났으면 내일 점심
+  slots: LunchSlot[];
+}
+
+const LUNCH_HOURS = [11, 12, 13];
+const LUNCH_END_MIN = 13 * 60 + 30; // 13:30이 지나면 내일 점심을 보여준다
+
+export async function getLunchForecast(lat: number, lng: number, now: Date): Promise<LunchForecast | null> {
+  const nowKst = kstParts(now);
+  const isTomorrow = nowKst.hour * 60 + nowKst.minute >= LUNCH_END_MIN;
+  const ymd = isTomorrow ? kstParts(new Date(now.getTime() + 24 * 60 * MIN)).ymd : nowKst.ymd;
+  const items = (await getVilageItems(lat, lng, now)).filter((i) => i.fcstDate === ymd);
+
+  const slots: LunchSlot[] = LUNCH_HOURS.map((hour) => {
+    const hhmm = `${String(hour).padStart(2, '0')}00`;
+    const v = Object.fromEntries(items.filter((i) => i.fcstTime === hhmm).map((i) => [i.category, i.fcstValue]));
+    return {
+      hour,
+      temp: num(v.TMP),
+      pop: num(v.POP),
+      pty: num(v.PTY) ?? 0,
+      rain: parseRain(v.PCP),
+      wind: num(v.WSD),
+      sky: num(v.SKY),
+    };
+  }).filter((slot) => slot.temp !== null); // 이미 지난 시각은 예보에 없다
+
+  if (slots.length === 0) return null;
+  return { date: `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`, isTomorrow, slots };
 }
 
 // ── 기상특보 (현재 발효 중) ─────────────────────────────────────

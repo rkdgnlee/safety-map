@@ -8,6 +8,7 @@ import {
   getFireRisk,
   getFishing,
   getHospitals,
+  getLunchForecast,
   getNightLow,
   getRegionFromNaver,
   getSun,
@@ -20,7 +21,7 @@ import {
 import { getCrimeSample, getFloodSample, getLandslideSample } from '../lib/safemapPixels';
 
 const LOG_PREFIX = '[report]';
-const CATEGORIES = new Set(['hiking', 'camping', 'fishing', 'night', 'moving']);
+const CATEGORIES = new Set(['hiking', 'camping', 'fishing', 'night', 'moving', 'walk']);
 
 function getQueryParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -72,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 2) 카테고리별 소스 병렬 조회
     const outdoor = category !== 'night' && category !== 'moving';
     const moving = category === 'moving';
-    const [weather, warnings, sun, air, fireRisk, nightLow, campsites, tide, fishing, crime, flood, landslide] = await Promise.all([
+    const [weather, warnings, sun, air, fireRisk, nightLow, campsites, tide, fishing, crime, flood, landslide, lunch] = await Promise.all([
       moving ? null : settle('weather', errors, getWeather(lat, lng, now)),
       moving ? null : settle('warnings', errors, getWarnings(region)),
       moving ? null : settle('sun', errors, getSun(lat, lng, now)),
@@ -85,6 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       category === 'night' || moving ? settle('crime', errors, getCrimeSample(lat, lng)) : null,
       moving ? settle('flood', errors, getFloodSample(lat, lng)) : null,
       moving ? settle('landslide', errors, getLandslideSample(lat, lng)) : null,
+      category === 'walk' ? settle('lunch', errors, getLunchForecast(lat, lng, now)) : null,
     ]);
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
@@ -105,6 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       crime,
       flood,
       landslide,
+      lunch,
       errors,
     });
   } catch (err) {
